@@ -1,6 +1,7 @@
 import asyncio
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from auth import TokenAuth
@@ -10,17 +11,23 @@ from store import CheckResult, ResultStore
 
 _background_tasks: set[asyncio.Task] = set()
 
-settings = Settings()
-app = FastAPI(title="Hoshi")
-store = ResultStore()
-auth = TokenAuth(settings.tokens_file)
-provider = create_provider(
-    settings.provider,
-    settings.model,
-    anthropic_api_key=settings.anthropic_api_key,
-    openai_api_key=settings.openai_api_key,
-    gemini_api_key=settings.gemini_api_key,
-)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = Settings()
+    app.state.store = ResultStore()
+    app.state.auth = TokenAuth(settings.tokens_file)
+    app.state.provider = create_provider(
+        settings.provider,
+        settings.model,
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        gemini_api_key=settings.gemini_api_key,
+    )
+    yield
+
+
+app = FastAPI(title="Hoshi", lifespan=lifespan)
 
 
 class CheckRequest(BaseModel):
@@ -34,21 +41,24 @@ async def health():
 
 @app.post("/api/check", status_code=202)
 async def check(
+    request: Request,
     body: CheckRequest,
     authorization: str = Header(default=""),
 ):
     token = authorization.removeprefix("Bearer ").strip()
-    username = auth.validate(token)
+    username = request.app.state.auth.validate(token)
     if not username:
         raise HTTPException(status_code=401, detail="unauthorized")
 
-    task = asyncio.create_task(_run_check(username, body.prompt))
+    task = asyncio.create_task(
+        _run_check(request.app.state.store, request.app.state.provider, username, body.prompt)
+    )
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     return {"status": "accepted"}
 
 
-async def _run_check(username: str, prompt: str):
+async def _run_check(store: ResultStore, provider, username: str, prompt: str):
     try:
         result = await provider.check_grammar(prompt)
         check_result = CheckResult(
@@ -72,9 +82,9 @@ async def _run_check(username: str, prompt: str):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    store.connect(websocket)
+    websocket.app.state.store.connect(websocket)
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        store.disconnect(websocket)
+        websocket.app.state.store.disconnect(websocket)
