@@ -63,3 +63,13 @@ def test_disconnect_idempotent():
     store.connect(sentinel)
     store.disconnect(sentinel)
     store.disconnect(sentinel)  # should not raise
+
+
+def test_results_capped_at_max():
+    store = ResultStore()
+    for i in range(1005):
+        store.add(CheckResult(
+            username="u", prompt=f"p{i}", has_issues=False, explanation="",
+        ))
+    assert len(store.results) == 1000
+    assert store.results[0].prompt == "p5"  # oldest 5 evicted

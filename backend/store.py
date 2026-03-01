@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 
+MAX_RESULTS = 1000
+
+
 @dataclass
 class CheckResult:
     username: str
@@ -31,6 +34,8 @@ class ResultStore:
 
     def add(self, result: CheckResult):
         self.results.append(result)
+        if len(self.results) > MAX_RESULTS:
+            self.results = self.results[-MAX_RESULTS:]
 
     def connect(self, websocket):
         self._connections.add(websocket)
