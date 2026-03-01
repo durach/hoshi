@@ -1,7 +1,6 @@
 import asyncio
 
-from fastapi import FastAPI, Header, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from auth import TokenAuth
@@ -39,7 +38,7 @@ async def check(
     token = authorization.removeprefix("Bearer ").strip()
     username = auth.validate(token)
     if not username:
-        return JSONResponse(status_code=401, content={"error": "unauthorized"})
+        raise HTTPException(status_code=401, detail="unauthorized")
 
     asyncio.create_task(_run_check(username, body.prompt))
     return {"status": "accepted"}
