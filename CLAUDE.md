@@ -15,13 +15,17 @@ Hoshi — a grammar teaching tool for Claude Code. Checks prompt grammar via con
 ```bash
 uv venv .venv
 source .venv/bin/activate
-cd backend && uv pip install -r requirements.txt
+uv sync --extra dev
 ```
 
-### Running tests
+### Running checks
 ```bash
-source .venv/bin/activate
-cd backend && python -m pytest -v
+uv run task check      # lint + typecheck + tests (all at once)
+uv run task lint       # ruff linter only
+uv run task typecheck  # mypy only
+uv run task test       # pytest only
+uv run task fix        # auto-fix lint issues
+uv run task format     # auto-format code
 ```
 
 Tests mock SDK constructors to avoid SOCKS proxy issues. Use `pytest_asyncio.fixture` for async fixtures (strict mode).
