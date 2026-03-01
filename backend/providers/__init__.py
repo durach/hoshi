@@ -7,6 +7,11 @@ class GrammarResult:
     has_issues: bool
     explanation: str
 
+SYSTEM_PROMPT = (
+    "Check the grammar of the following text. Explain issues if you find. "
+    'Respond with JSON: {"has_issues": true/false, "explanation": "markdown text"}'
+)
+
 
 class GrammarProvider(Protocol):
     async def check_grammar(self, text: str) -> GrammarResult: ...

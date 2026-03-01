@@ -2,12 +2,7 @@ import json
 
 from google import genai
 
-from providers import GrammarResult
-
-SYSTEM_PROMPT = (
-    "Check the grammar of the following text. Explain issues if you find. "
-    'Respond with JSON: {"has_issues": true/false, "explanation": "markdown text"}'
-)
+from providers import GrammarResult, SYSTEM_PROMPT
 
 
 class GeminiProvider:
