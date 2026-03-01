@@ -11,11 +11,14 @@ class CheckResult:
     prompt: str
     has_issues: bool
     explanation: str
+    status: str = ""
     timestamp: str = ""
 
     def __post_init__(self):
         if not self.timestamp:
             self.timestamp = datetime.now(timezone.utc).isoformat()
+        if not self.status:
+            self.status = "issues" if self.has_issues else "clean"
 
     def to_dict(self) -> dict:
         return {
@@ -23,6 +26,7 @@ class CheckResult:
             "prompt": self.prompt,
             "has_issues": self.has_issues,
             "explanation": self.explanation,
+            "status": self.status,
             "timestamp": self.timestamp,
         }
 

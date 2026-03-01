@@ -61,6 +61,7 @@ async def _run_check(username: str, prompt: str):
             prompt=prompt,
             has_issues=False,
             explanation=f"Grammar check failed: {e}",
+            status="error",
         )
         await store.add_and_broadcast(error_result)
 

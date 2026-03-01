@@ -27,8 +27,8 @@ function addEntry(data) {
     entry.className = "entry";
 
     const time = new Date(data.timestamp).toLocaleString();
-    const badgeClass = data.has_issues ? "issues" : "clean";
-    const badgeText = data.has_issues ? "issues found" : "clean";
+    const badgeClass = data.status === "error" ? "error" : data.has_issues ? "issues" : "clean";
+    const badgeText = data.status === "error" ? "error" : data.has_issues ? "issues found" : "clean";
 
     entry.innerHTML = `
         <div class="entry-header">
@@ -37,7 +37,7 @@ function addEntry(data) {
             <span class="badge ${badgeClass}">${badgeText}</span>
         </div>
         <div class="prompt" onclick="this.classList.toggle('expanded')">${escapeHtml(data.prompt)}</div>
-        ${data.has_issues ? `<div class="explanation">${marked.parse(data.explanation)}</div>` : ""}
+        ${data.has_issues || data.status === "error" ? `<div class="explanation">${marked.parse(data.explanation)}</div>` : ""}
     `;
 
     feed.prepend(entry);

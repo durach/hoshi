@@ -73,3 +73,24 @@ def test_results_capped_at_max():
         ))
     assert len(store.results) == 1000
     assert store.results[0].prompt == "p5"  # oldest 5 evicted
+
+
+def test_check_result_status_derived_from_has_issues():
+    clean = CheckResult(username="u", prompt="p", has_issues=False, explanation="")
+    assert clean.status == "clean"
+
+    issues = CheckResult(username="u", prompt="p", has_issues=True, explanation="bad")
+    assert issues.status == "issues"
+
+
+def test_check_result_explicit_error_status():
+    error = CheckResult(
+        username="u", prompt="p", has_issues=False, explanation="fail", status="error",
+    )
+    assert error.status == "error"
+
+
+def test_check_result_status_in_dict():
+    r = CheckResult(username="u", prompt="p", has_issues=False, explanation="")
+    d = r.to_dict()
+    assert d["status"] == "clean"

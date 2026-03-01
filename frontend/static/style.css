@@ -53,6 +53,7 @@ h1 { font-size: 1.5rem; color: #f0f6fc; }
 }
 .badge.clean { background: #238636; color: #fff; }
 .badge.issues { background: #da3633; color: #fff; }
+.badge.error { background: #d29922; color: #fff; }
 
 .prompt {
     background: #0d1117;
