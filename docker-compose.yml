@@ -8,11 +8,11 @@ services:
       - "8000"
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        DASHBOARD_USER: ${DASHBOARD_USER:-admin}
-        DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-changeme}
+    build: ./frontend
+    environment:
+      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-changeme}
+      - WS_TOKEN=${WS_TOKEN:-}
     ports:
       - "8080:80"
     depends_on:
