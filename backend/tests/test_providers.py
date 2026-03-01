@@ -74,3 +74,34 @@ async def test_gemini_provider_parses_response():
         result = await provider.check_grammar("The cat sat on the mat.")
 
     assert result.has_issues is False
+
+
+# --- Factory tests ---
+
+from providers import create_provider
+
+
+def test_create_anthropic_provider():
+    with patch("providers.anthropic.anthropic.AsyncAnthropic"):
+        from providers.anthropic import AnthropicProvider
+        p = create_provider("anthropic", "claude-sonnet-4-5-20250929", anthropic_api_key="key")
+        assert isinstance(p, AnthropicProvider)
+
+
+def test_create_openai_provider():
+    with patch("providers.openai.openai.AsyncOpenAI"):
+        from providers.openai import OpenAIProvider
+        p = create_provider("openai", "gpt-4o", openai_api_key="key")
+        assert isinstance(p, OpenAIProvider)
+
+
+def test_create_gemini_provider():
+    with patch("providers.gemini.genai.Client"):
+        from providers.gemini import GeminiProvider
+        p = create_provider("gemini", "gemini-2.0-flash", gemini_api_key="key")
+        assert isinstance(p, GeminiProvider)
+
+
+def test_create_unknown_provider():
+    with pytest.raises(ValueError, match="Unknown provider"):
+        create_provider("unknown", "model")
