@@ -40,3 +40,37 @@ async def test_anthropic_provider_no_issues():
         result = await provider.check_grammar("The cat sat on the mat.")
 
     assert result.has_issues is False
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_parses_response():
+    mock_choice = MagicMock()
+    mock_choice.message.content = '{"has_issues": true, "explanation": "Fix grammar."}'
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+
+    with patch("providers.openai.openai.AsyncOpenAI") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        from providers.openai import OpenAIProvider
+        provider = OpenAIProvider(api_key="fake-key", model="gpt-4o")
+        result = await provider.check_grammar("He go to store")
+
+    assert result.has_issues is True
+
+
+@pytest.mark.asyncio
+async def test_gemini_provider_parses_response():
+    mock_response = MagicMock()
+    mock_response.text = '{"has_issues": false, "explanation": "All good."}'
+
+    with patch("providers.gemini.genai.Client") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.models.generate_content_async = AsyncMock(return_value=mock_response)
+
+        from providers.gemini import GeminiProvider
+        provider = GeminiProvider(api_key="fake-key", model="gemini-2.0-flash")
+        result = await provider.check_grammar("The cat sat on the mat.")
+
+    assert result.has_issues is False
