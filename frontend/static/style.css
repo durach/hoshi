@@ -1,0 +1,84 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: #0d1117;
+    color: #c9d1d9;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px solid #21262d;
+    margin-bottom: 1rem;
+}
+
+h1 { font-size: 1.5rem; color: #f0f6fc; }
+
+.status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+.status.connected { background: #238636; color: #fff; }
+.status.disconnected { background: #da3633; color: #fff; }
+
+.entry {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.entry-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #8b949e;
+}
+
+.badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 600;
+}
+.badge.clean { background: #238636; color: #fff; }
+.badge.issues { background: #da3633; color: #fff; }
+
+.prompt {
+    background: #0d1117;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: pointer;
+    max-height: 4.5em;
+    overflow: hidden;
+}
+.prompt.expanded { max-height: none; }
+
+.explanation {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    padding-top: 0.5rem;
+    border-top: 1px solid #21262d;
+}
+.explanation p { margin-bottom: 0.5rem; }
+.explanation code {
+    background: #0d1117;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
