@@ -1,13 +1,22 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel
 
 from auth import TokenAuth
 from config import Settings
 from providers import create_provider
 from store import CheckResult, ResultStore
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,7 +58,9 @@ async def check(
         raise HTTPException(status_code=401, detail="unauthorized")
 
     task = asyncio.create_task(
-        _run_check(request.app.state.store, request.app.state.provider, username, body.prompt)
+        _run_check(
+            request.app.state.store, request.app.state.provider, username, body.prompt
+        )
     )
     request.app.state.background_tasks.add(task)
     task.add_done_callback(request.app.state.background_tasks.discard)

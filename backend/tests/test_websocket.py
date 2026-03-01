@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from starlette.testclient import TestClient
@@ -22,16 +22,14 @@ def ws_app():
 
 def test_ws_rejects_without_token(ws_app):
     client = TestClient(ws_app)
-    with pytest.raises(Exception):
-        with client.websocket_connect("/ws"):
-            pass
+    with pytest.raises(Exception), client.websocket_connect("/ws"):  # noqa: B017
+        pass
 
 
 def test_ws_rejects_invalid_token(ws_app):
     client = TestClient(ws_app)
-    with pytest.raises(Exception):
-        with client.websocket_connect("/ws?token=bad_token"):
-            pass
+    with pytest.raises(Exception), client.websocket_connect("/ws?token=bad_token"):  # noqa: B017
+        pass
 
 
 def test_ws_accepts_valid_token(ws_app):

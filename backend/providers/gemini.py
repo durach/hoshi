@@ -1,6 +1,6 @@
 from google import genai
 
-from providers import GrammarResult, SYSTEM_PROMPT, parse_provider_json
+from providers import SYSTEM_PROMPT, GrammarResult, parse_provider_json
 
 
 class GeminiProvider:

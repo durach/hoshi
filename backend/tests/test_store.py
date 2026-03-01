@@ -68,9 +68,14 @@ def test_disconnect_idempotent():
 def test_results_capped_at_max():
     store = ResultStore()
     for i in range(1005):
-        store.add(CheckResult(
-            username="u", prompt=f"p{i}", has_issues=False, explanation="",
-        ))
+        store.add(
+            CheckResult(
+                username="u",
+                prompt=f"p{i}",
+                has_issues=False,
+                explanation="",
+            )
+        )
     assert len(store.results) == 1000
     assert store.results[0].prompt == "p5"  # oldest 5 evicted
 
@@ -85,7 +90,11 @@ def test_check_result_status_derived_from_has_issues():
 
 def test_check_result_explicit_error_status():
     error = CheckResult(
-        username="u", prompt="p", has_issues=False, explanation="fail", status="error",
+        username="u",
+        prompt="p",
+        has_issues=False,
+        explanation="fail",
+        status="error",
     )
     assert error.status == "error"
 

@@ -1,8 +1,8 @@
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from providers import GrammarResult, parse_provider_json
+from providers import create_provider, parse_provider_json
 
 
 # --- parse_provider_json tests ---
@@ -15,7 +15,10 @@ def test_parse_clean_json():
 
 def test_parse_markdown_fenced_json():
     raw = '```json\n{"has_issues": true, "explanation": "bad grammar"}\n```'
-    assert parse_provider_json(raw) == {"has_issues": True, "explanation": "bad grammar"}
+    assert parse_provider_json(raw) == {
+        "has_issues": True,
+        "explanation": "bad grammar",
+    }
 
 
 def test_parse_invalid_json_raises_valueerror():
@@ -27,7 +30,9 @@ def test_parse_invalid_json_raises_valueerror():
 async def test_anthropic_provider_parses_response():
     mock_response = MagicMock()
     mock_response.content = [
-        MagicMock(text='{"has_issues": true, "explanation": "Use *goes* instead of *go*."}')
+        MagicMock(
+            text='{"has_issues": true, "explanation": "Use *goes* instead of *go*."}'
+        )
     ]
 
     with patch("providers.anthropic.anthropic.AsyncAnthropic") as MockClient:
@@ -35,7 +40,10 @@ async def test_anthropic_provider_parses_response():
         mock_instance.messages.create = AsyncMock(return_value=mock_response)
 
         from providers.anthropic import AnthropicProvider
-        provider = AnthropicProvider(api_key="fake-key", model="claude-sonnet-4-5-20250929")
+
+        provider = AnthropicProvider(
+            api_key="fake-key", model="claude-sonnet-4-5-20250929"
+        )
         result = await provider.check_grammar("He go to the store")
 
     assert result.has_issues is True
@@ -54,7 +62,10 @@ async def test_anthropic_provider_no_issues():
         mock_instance.messages.create = AsyncMock(return_value=mock_response)
 
         from providers.anthropic import AnthropicProvider
-        provider = AnthropicProvider(api_key="fake-key", model="claude-sonnet-4-5-20250929")
+
+        provider = AnthropicProvider(
+            api_key="fake-key", model="claude-sonnet-4-5-20250929"
+        )
         result = await provider.check_grammar("The cat sat on the mat.")
 
     assert result.has_issues is False
@@ -72,6 +83,7 @@ async def test_openai_provider_parses_response():
         mock_instance.chat.completions.create = AsyncMock(return_value=mock_response)
 
         from providers.openai import OpenAIProvider
+
         provider = OpenAIProvider(api_key="fake-key", model="gpt-4o")
         result = await provider.check_grammar("He go to store")
 
@@ -85,9 +97,12 @@ async def test_gemini_provider_parses_response():
 
     with patch("providers.gemini.genai.Client") as MockClient:
         mock_instance = MockClient.return_value
-        mock_instance.models.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_instance.models.generate_content_async = AsyncMock(
+            return_value=mock_response
+        )
 
         from providers.gemini import GeminiProvider
+
         provider = GeminiProvider(api_key="fake-key", model="gemini-2.0-flash")
         result = await provider.check_grammar("The cat sat on the mat.")
 
@@ -96,19 +111,21 @@ async def test_gemini_provider_parses_response():
 
 # --- Factory tests ---
 
-from providers import create_provider
-
 
 def test_create_anthropic_provider():
     with patch("providers.anthropic.anthropic.AsyncAnthropic"):
         from providers.anthropic import AnthropicProvider
-        p = create_provider("anthropic", "claude-sonnet-4-5-20250929", anthropic_api_key="key")
+
+        p = create_provider(
+            "anthropic", "claude-sonnet-4-5-20250929", anthropic_api_key="key"
+        )
         assert isinstance(p, AnthropicProvider)
 
 
 def test_create_openai_provider():
     with patch("providers.openai.openai.AsyncOpenAI"):
         from providers.openai import OpenAIProvider
+
         p = create_provider("openai", "gpt-4o", openai_api_key="key")
         assert isinstance(p, OpenAIProvider)
 
@@ -116,6 +133,7 @@ def test_create_openai_provider():
 def test_create_gemini_provider():
     with patch("providers.gemini.genai.Client"):
         from providers.gemini import GeminiProvider
+
         p = create_provider("gemini", "gemini-2.0-flash", gemini_api_key="key")
         assert isinstance(p, GeminiProvider)
 
