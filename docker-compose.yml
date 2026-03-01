@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    volumes:
+      - ./tokens.json:/app/tokens.json:ro
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        DASHBOARD_USER: ${DASHBOARD_USER:-admin}
+        DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-changeme}
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
