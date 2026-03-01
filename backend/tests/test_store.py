@@ -54,3 +54,12 @@ async def test_disconnect_removes_ws(store):
     await store.add_and_broadcast(result)
 
     ws.send_json.assert_not_called()
+
+
+def test_disconnect_idempotent():
+    """Disconnecting a websocket twice should not raise."""
+    store = ResultStore()
+    sentinel = object()
+    store.connect(sentinel)
+    store.disconnect(sentinel)
+    store.disconnect(sentinel)  # should not raise

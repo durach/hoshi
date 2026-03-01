@@ -27,16 +27,16 @@ class CheckResult:
 class ResultStore:
     def __init__(self):
         self.results: list[CheckResult] = []
-        self._connections: list = []
+        self._connections: set = set()
 
     def add(self, result: CheckResult):
         self.results.append(result)
 
     def connect(self, websocket):
-        self._connections.append(websocket)
+        self._connections.add(websocket)
 
     def disconnect(self, websocket):
-        self._connections.remove(websocket)
+        self._connections.discard(websocket)
 
     async def add_and_broadcast(self, result: CheckResult):
         self.add(result)
@@ -48,4 +48,4 @@ class ResultStore:
             except Exception:
                 dead.append(ws)
         for ws in dead:
-            self._connections.remove(ws)
+            self._connections.discard(ws)
