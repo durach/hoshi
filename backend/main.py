@@ -8,6 +8,8 @@ from config import Settings
 from providers import create_provider
 from store import CheckResult, ResultStore
 
+_background_tasks: set[asyncio.Task] = set()
+
 settings = Settings()
 app = FastAPI(title="Hoshi")
 store = ResultStore()
@@ -40,7 +42,9 @@ async def check(
     if not username:
         raise HTTPException(status_code=401, detail="unauthorized")
 
-    asyncio.create_task(_run_check(username, body.prompt))
+    task = asyncio.create_task(_run_check(username, body.prompt))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     return {"status": "accepted"}
 
 
