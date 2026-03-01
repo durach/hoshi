@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from anthropic.types import TextBlock
 
 from providers import create_provider, parse_provider_json
 
@@ -30,8 +31,9 @@ def test_parse_invalid_json_raises_valueerror():
 async def test_anthropic_provider_parses_response():
     mock_response = MagicMock()
     mock_response.content = [
-        MagicMock(
-            text='{"has_issues": true, "explanation": "Use *goes* instead of *go*."}'
+        TextBlock(
+            type="text",
+            text='{"has_issues": true, "explanation": "Use *goes* instead of *go*."}',
         )
     ]
 
@@ -54,7 +56,10 @@ async def test_anthropic_provider_parses_response():
 async def test_anthropic_provider_no_issues():
     mock_response = MagicMock()
     mock_response.content = [
-        MagicMock(text='{"has_issues": false, "explanation": "No issues found."}')
+        TextBlock(
+            type="text",
+            text='{"has_issues": false, "explanation": "No issues found."}',
+        )
     ]
 
     with patch("providers.anthropic.anthropic.AsyncAnthropic") as MockClient:
@@ -97,7 +102,7 @@ async def test_gemini_provider_parses_response():
 
     with patch("providers.gemini.genai.Client") as MockClient:
         mock_instance = MockClient.return_value
-        mock_instance.models.generate_content_async = AsyncMock(
+        mock_instance.aio.models.generate_content = AsyncMock(
             return_value=mock_response
         )
 

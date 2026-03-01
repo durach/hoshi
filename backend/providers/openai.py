@@ -16,7 +16,10 @@ class OpenAIProvider:
                 {"role": "user", "content": text},
             ],
         )
-        data = parse_provider_json(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError("OpenAI returned empty content")
+        data = parse_provider_json(content)
         return GrammarResult(
             has_issues=data["has_issues"],
             explanation=data.get("explanation", ""),

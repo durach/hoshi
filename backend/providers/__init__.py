@@ -1,7 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 @dataclass
@@ -16,12 +16,13 @@ SYSTEM_PROMPT = (
 )
 
 
-def parse_provider_json(text: str) -> dict:
+def parse_provider_json(text: str) -> dict[str, Any]:
     """Strip markdown fences and parse JSON from LLM response."""
     cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text.strip())
     cleaned = re.sub(r"\n?```\s*$", "", cleaned)
     try:
-        return json.loads(cleaned)
+        result: dict[str, Any] = json.loads(cleaned)
+        return result
     except json.JSONDecodeError as e:
         raise ValueError(f"Provider returned invalid JSON: {e}") from e
 

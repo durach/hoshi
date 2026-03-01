@@ -9,13 +9,15 @@ class GeminiProvider:
         self._model = model
 
     async def check_grammar(self, text: str) -> GrammarResult:
-        response = await self._client.models.generate_content_async(
+        response = await self._client.aio.models.generate_content(
             model=self._model,
             contents=text,
             config=genai.types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
             ),
         )
+        if response.text is None:
+            raise ValueError("Gemini returned empty content")
         data = parse_provider_json(response.text)
         return GrammarResult(
             has_issues=data["has_issues"],
