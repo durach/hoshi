@@ -37,7 +37,7 @@ function addEntry(data) {
             <span class="badge ${badgeClass}">${badgeText}</span>
         </div>
         <div class="prompt" onclick="this.classList.toggle('expanded')">${escapeHtml(data.prompt)}</div>
-        ${data.has_issues || data.status === "error" ? `<div class="explanation">${marked.parse(data.explanation)}</div>` : ""}
+        ${data.has_issues || data.status === "error" ? `<div class="explanation">${DOMPurify.sanitize(marked.parse(data.explanation))}</div>` : ""}
     `;
 
     feed.prepend(entry);
