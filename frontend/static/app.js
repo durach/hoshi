@@ -11,10 +11,12 @@ function connect() {
         status.className = "status connected";
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
         status.textContent = "disconnected";
         status.className = "status disconnected";
-        setTimeout(connect, 3000);
+        if (event.code !== 4401) {
+            setTimeout(connect, 3000);
+        }
     };
 
     ws.onmessage = (event) => {

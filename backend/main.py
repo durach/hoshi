@@ -9,12 +9,10 @@ from config import Settings
 from providers import create_provider
 from store import CheckResult, ResultStore
 
-_background_tasks: set[asyncio.Task] = set()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = Settings()
+    app.state.background_tasks = set()
     app.state.store = ResultStore()
     app.state.auth = TokenAuth(settings.tokens_file)
     app.state.provider = create_provider(
@@ -53,8 +51,8 @@ async def check(
     task = asyncio.create_task(
         _run_check(request.app.state.store, request.app.state.provider, username, body.prompt)
     )
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
+    request.app.state.background_tasks.add(task)
+    task.add_done_callback(request.app.state.background_tasks.discard)
     return {"status": "accepted"}
 
 

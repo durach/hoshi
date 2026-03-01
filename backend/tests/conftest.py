@@ -32,6 +32,7 @@ async def provider():
 
 @pytest_asyncio.fixture
 async def client(store, auth, provider):
+    app.state.background_tasks = set()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
