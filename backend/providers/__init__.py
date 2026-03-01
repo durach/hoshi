@@ -1,3 +1,5 @@
+import json
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -11,6 +13,16 @@ SYSTEM_PROMPT = (
     "Check the grammar of the following text. Explain issues if you find. "
     'Respond with JSON: {"has_issues": true/false, "explanation": "markdown text"}'
 )
+
+
+def parse_provider_json(text: str) -> dict:
+    """Strip markdown fences and parse JSON from LLM response."""
+    cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text.strip())
+    cleaned = re.sub(r"\n?```\s*$", "", cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Provider returned invalid JSON: {e}") from e
 
 
 class GrammarProvider(Protocol):

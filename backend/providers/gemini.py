@@ -1,8 +1,6 @@
-import json
-
 from google import genai
 
-from providers import GrammarResult, SYSTEM_PROMPT
+from providers import GrammarResult, SYSTEM_PROMPT, parse_provider_json
 
 
 class GeminiProvider:
@@ -18,7 +16,7 @@ class GeminiProvider:
                 system_instruction=SYSTEM_PROMPT,
             ),
         )
-        data = json.loads(response.text)
+        data = parse_provider_json(response.text)
         return GrammarResult(
             has_issues=data["has_issues"],
             explanation=data.get("explanation", ""),

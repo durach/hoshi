@@ -1,8 +1,6 @@
-import json
-
 import anthropic
 
-from providers import GrammarResult, SYSTEM_PROMPT
+from providers import GrammarResult, SYSTEM_PROMPT, parse_provider_json
 
 
 class AnthropicProvider:
@@ -17,7 +15,7 @@ class AnthropicProvider:
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": text}],
         )
-        data = json.loads(response.content[0].text)
+        data = parse_provider_json(response.content[0].text)
         return GrammarResult(
             has_issues=data["has_issues"],
             explanation=data.get("explanation", ""),

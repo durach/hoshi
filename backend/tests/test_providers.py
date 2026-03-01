@@ -2,7 +2,25 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
 
-from providers import GrammarResult
+from providers import GrammarResult, parse_provider_json
+
+
+# --- parse_provider_json tests ---
+
+
+def test_parse_clean_json():
+    raw = '{"has_issues": false, "explanation": ""}'
+    assert parse_provider_json(raw) == {"has_issues": False, "explanation": ""}
+
+
+def test_parse_markdown_fenced_json():
+    raw = '```json\n{"has_issues": true, "explanation": "bad grammar"}\n```'
+    assert parse_provider_json(raw) == {"has_issues": True, "explanation": "bad grammar"}
+
+
+def test_parse_invalid_json_raises_valueerror():
+    with pytest.raises(ValueError, match="Provider returned invalid JSON"):
+        parse_provider_json("Sure! Here is the result...")
 
 
 @pytest.mark.asyncio

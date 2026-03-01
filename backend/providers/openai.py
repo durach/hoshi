@@ -1,8 +1,6 @@
-import json
-
 import openai
 
-from providers import GrammarResult, SYSTEM_PROMPT
+from providers import GrammarResult, SYSTEM_PROMPT, parse_provider_json
 
 
 class OpenAIProvider:
@@ -18,7 +16,7 @@ class OpenAIProvider:
                 {"role": "user", "content": text},
             ],
         )
-        data = json.loads(response.choices[0].message.content)
+        data = parse_provider_json(response.choices[0].message.content)
         return GrammarResult(
             has_issues=data["has_issues"],
             explanation=data.get("explanation", ""),
