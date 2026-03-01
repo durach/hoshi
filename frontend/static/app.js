@@ -3,7 +3,8 @@ const status = document.getElementById("status");
 
 function connect() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${location.host}/ws`);
+    const token = document.querySelector('meta[name="ws-token"]')?.content || "";
+    const ws = new WebSocket(`${proto}//${location.host}/ws?token=${token}`);
 
     ws.onopen = () => {
         status.textContent = "connected";

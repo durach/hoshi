@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from auth import TokenAuth
@@ -80,7 +80,11 @@ async def _run_check(store: ResultStore, provider, username: str, prompt: str):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(default="")):
+    username = websocket.app.state.auth.validate(token)
+    if not username:
+        await websocket.close(code=4401, reason="unauthorized")
+        return
     await websocket.accept()
     websocket.app.state.store.connect(websocket)
     try:
