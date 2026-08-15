@@ -119,3 +119,21 @@ Dashboard at `http://localhost:8080`.
 - Prompts typed while Claude is working never fire `UserPromptSubmit`; the hook
   replays them from the transcript on its next run
 - Models newer than `gpt-5.2` reject an explicit `temperature`
+- **The repo is public and this project handles real prompts**, so treat any
+  text copied from a live result as private until proven otherwise. The
+  fixtures in `backend/tests/test_analysis.py` were captured verbatim once and
+  had to be rewritten; they are synthetic now, and their wording is
+  load-bearing — every marked span and corrected word is positioned to produce
+  specific `difflib` opcodes, so rephrasing one breaks assertions that look
+  unrelated
+- `.githooks/pre-push` is the guard against that happening again. It needs
+  `git config core.hooksPath .githooks` once per clone — a hook nobody enabled
+  protects nothing, and nothing in git enables it for you. Private words live
+  in `~/.hoshi/privacy-denylist.txt`, outside the repo. `bash
+  tests/test-pre-push.sh` covers it, and asserts **exit codes**: two bugs
+  during its development printed `BLOCKED` and then exited 0
+- The guard's own fixtures have to look like leaks, so a `privacy-guard-allow`
+  comment exempts the single line it sits on. Reach for it rather than
+  `PRIVACY_GUARD=off`, which disables every check for the whole push. Neither
+  the hook nor its tests may contain a real private term — the test denylist
+  uses invented words on purpose

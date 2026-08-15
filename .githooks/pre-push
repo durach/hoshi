@@ -1,0 +1,209 @@
+#!/bin/bash
+# Privacy guard for a public repository. Runs at the moment that actually
+# matters: the push.
+#
+# Committing something private is recoverable — rewrite and move on. Pushing it
+# is not: the repo is public, and GitHub serves blobs by SHA long after they
+# stop being reachable. So this guard sits on `git push` rather than on
+# `git commit`, and it is deliberately noisy about refusing.
+#
+# It scans two things for every ref being pushed:
+#   - the tree at the tip, which is what a visitor clones
+#   - every line ADDED by the commits being pushed, which catches content that
+#     was committed and later deleted and is still recoverable from history
+#
+# Config: HOSHI_DENYLIST, default ~/.hoshi/privacy-denylist.txt. That file holds
+# your own private vocabulary — client names, project code names, product
+# nouns. It lives OUTSIDE the repository on purpose: a denylist of secret words
+# is itself a secret, and committing one here would publish the very list it
+# exists to protect.
+#
+# Escape hatch: PRIVACY_GUARD=off git push ...  (say why in the PR/commit)
+
+set -uo pipefail
+
+REMOTE_NAME="${1:-origin}"
+DENYLIST="${HOSHI_DENYLIST:-$HOME/.hoshi/privacy-denylist.txt}"
+ZERO='0000000000000000000000000000000000000000'
+
+if [ "${PRIVACY_GUARD:-on}" = "off" ]; then
+    printf 'privacy guard: disabled by PRIVACY_GUARD=off\n' >&2
+    exit 0
+fi
+
+failed=0
+warned=0
+
+fail() {
+    printf '\n  BLOCKED  %s\n' "$1" >&2
+    failed=1
+}
+
+warn() {
+    printf '\n  WARNING  %s\n' "$1" >&2
+    warned=1
+}
+
+# Credential shapes. Deliberately narrow: a pattern that cries wolf gets
+# switched off, and a guard that is switched off protects nothing.
+CREDENTIAL_RE='sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z_-]{30,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+
+# Paths that only ever exist as scratch space. `.proto/` is here because a
+# prototype directory was committed by accident once and shipped real prompts.
+SCRATCH_RE='^(\.proto|scratch|tmp|sandbox|notes|private)/'
+
+# Home directories. `/Users/me` is the invented one the docs use as an example,
+# so it is subtracted below rather than excluded by a lookahead — BSD grep on
+# macOS has no -P, and a hook that only runs on Linux would never run here.
+HOMEDIR_RE='/(Users|home)/[A-Za-z0-9_.-]+'
+HOMEDIR_OK_RE='^/(Users|home)/me$'
+
+# Refs that exist to preserve pre-sanitization history. Pushing one republishes
+# exactly what a rewrite removed, which is what `git push --all` would do.
+BACKUP_REF_RE='backup|pre-sanitize|pre-scrub|archive|old-main'
+
+# Per-line opt-out, for text that must look like a leak to be useful — test
+# fixtures, documentation of the patterns themselves.
+ALLOW_MARKER='privacy-guard-allow'
+
+scan_text() {
+    # scan_text <label> <source-description> <text>
+    #
+    # The text arrives as an argument rather than on stdin or via a temp file,
+    # and both alternatives were tried and rejected:
+    #   - piping into the function runs it in a subshell, where the `failed=1`
+    #     set by fail() is discarded on exit. The hook then prints BLOCKED and
+    #     exits 0 — the one failure mode a guard must not have.
+    #   - a mktemp scratch file turns any failure to create it into an empty
+    #     scan, which reads as "nothing found".
+    # Both were caught by tests/test-pre-push.sh, which asserts exit codes and
+    # not just messages. Keep it that way.
+    local label="$1" source="$2" text="$3" hits
+
+    [ -n "$text" ] || return 0
+
+    # A line carrying the allow marker is skipped. This exists because the
+    # guard's own tests must contain the very things it looks for — a fake
+    # credential, a fake home path — and a guard that blocks every push is a
+    # guard that gets turned off within a day. The marker is per line and
+    # visible in review, unlike PRIVACY_GUARD=off which disables everything.
+    text="$(printf '%s' "$text" | grep -v "$ALLOW_MARKER")"
+    [ -n "$text" ] || return 0
+
+    hits="$(printf '%s' "$text" | grep -n -E "$CREDENTIAL_RE" | head -5)"
+    if [ -n "$hits" ]; then
+        fail "$label: credential-shaped string in $source"
+        printf '%s\n' "$hits" | sed -E 's/^([0-9]+:).*/  \1 <redacted — matched a credential pattern>/' >&2
+    fi
+
+    # Report the offending paths themselves rather than their lines: the line
+    # around a hit may hold something we would rather not echo to a terminal.
+    hits="$(printf '%s' "$text" | grep -o -E "$HOMEDIR_RE" |
+        grep -v -E "$HOMEDIR_OK_RE" | sort -u | head -5)"
+    if [ -n "$hits" ]; then
+        fail "$label: real home-directory path in $source"
+        printf '%s\n' "$hits" | sed 's/^/    /' >&2
+    fi
+
+    if [ -r "$DENYLIST" ]; then
+        # One term per line; blank lines and # comments ignored. Terms are
+        # matched case-insensitively and as whole words, so a term "widget"
+        # fires on "Widget" but not on "widgetry".
+        local terms
+        terms="$(grep -v -E '^\s*(#|$)' "$DENYLIST" | sed -E 's/^\s+|\s+$//g' | grep -v '^$' || true)"
+        if [ -n "$terms" ]; then
+            hits="$(printf '%s' "$text" | grep -n -i -w -F -f <(printf '%s\n' "$terms") | head -5)"
+            if [ -n "$hits" ]; then
+                fail "$label: private term from the denylist in $source"
+                printf '%s\n' "$hits" | cut -c1-120 | sed 's/^/    /' >&2
+            fi
+        fi
+    fi
+}
+
+check_ref() {
+    local local_sha="$1" remote_sha="$2" ref_name="$3" range tree_files images tree_text added
+
+    if printf '%s' "$ref_name" | grep -q -i -E "$BACKUP_REF_RE"; then
+        fail "refusing to push '$ref_name' — it looks like a pre-sanitization backup ref, which would republish the history a rewrite removed"
+        return
+    fi
+
+    # Which commits are new to this remote. Everything already published is
+    # someone else's problem; scanning it again only produces noise.
+    if [ "$remote_sha" = "$ZERO" ]; then
+        range="$local_sha --not --remotes=$REMOTE_NAME"
+    else
+        range="$local_sha --not $remote_sha"
+    fi
+
+    # 1. Files that must never be tracked, in the tree a clone would get.
+    tree_files="$(git ls-tree -r --name-only "$local_sha")"
+    if printf '%s\n' "$tree_files" | grep -q -E '^(\.env|tokens\.json)$'; then
+        fail "$ref_name: .env or tokens.json is tracked in the pushed tree"
+    fi
+    if printf '%s\n' "$tree_files" | grep -q -E "$SCRATCH_RE"; then
+        fail "$ref_name: scratch directory in the pushed tree"
+        printf '%s\n' "$tree_files" | grep -E "$SCRATCH_RE" | head -5 | sed 's/^/    /' >&2
+    fi
+
+    # 2. The tip tree itself — what a visitor actually reads. An empty read here
+    #    means the scan did not happen, which must never be mistaken for a clean
+    #    result: every commit in this repo has text in it.
+    tree_text="$(git grep -I -h -E '.' "$local_sha" -- . 2>/dev/null)"
+    if [ -z "$tree_text" ]; then
+        fail "$ref_name: could not read the pushed tree — refusing to treat an empty scan as clean"
+    fi
+    scan_text "$ref_name" "the pushed tree" "$tree_text"
+
+    # 3. Every line added by the new commits, including in files later deleted.
+    #    This is the check that catches a prototype committed and removed two
+    #    commits later: the content is still in history and still fetchable.
+    # shellcheck disable=SC2086
+    added="$(git log --format='' --unified=0 -p $range -- 2>/dev/null |
+        grep '^+' | grep -v '^+++')"
+    scan_text "$ref_name" "lines added by the pushed commits" "$added"
+
+    # 4. Images cannot be grepped, and the leak that started all this was a
+    #    username and a client project name legible in a screenshot.
+    # shellcheck disable=SC2086
+    images="$(git log --format='' --name-only $range -- 2>/dev/null |
+        grep -E '\.(png|jpe?g|gif|webp|svg)$' | sort -u)"
+    if [ -n "$images" ]; then
+        warn "$ref_name: this push changes images. Open them — a scan cannot read a screenshot:"
+        printf '%s\n' "$images" | sed 's/^/    /' >&2
+    fi
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$ZERO" ] && continue # branch deletion
+    check_ref "$local_sha" "$remote_sha" "${remote_ref#refs/heads/}"
+done
+
+if [ ! -r "$DENYLIST" ]; then
+    printf '\n  NOTE  no denylist at %s — checking credentials and paths only.\n' "$DENYLIST" >&2
+    printf '        Private words (clients, project code names) go there, one per line.\n' >&2
+fi
+
+if [ "$failed" -ne 0 ]; then
+    cat >&2 <<'EOT'
+
+Push refused. This repository is public: once a blob is on GitHub it stays
+fetchable by SHA even after a rewrite, so fix it here rather than after.
+
+  - remove the content, amend or rebase the commits that carry it
+  - re-run the push
+
+If a match is a false positive, override for this push only:
+
+  PRIVACY_GUARD=off git push ...
+
+EOT
+    exit 1
+fi
+
+if [ "$warned" -ne 0 ]; then
+    printf '\nprivacy guard: warnings only, push continues.\n\n' >&2
+fi
+
+exit 0

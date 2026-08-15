@@ -187,6 +187,48 @@ Results live in memory only — the last 1000 are retained and served to the
 dashboard via `GET /api/results` when it connects, so a page refresh restores
 the recent feed. Restarting the backend clears everything.
 
+## Privacy guard
+
+Hoshi reads the prompts you type into a coding agent, so its own repository is
+an unusually easy place to leak your work: a test fixture copied from a real
+result, a screenshot with a client's project name in the sidebar. Both have
+happened here.
+
+`.githooks/pre-push` refuses a push that carries credentials, a real home
+directory path, a scratch directory, or any word from a private denylist. It
+checks the tree being pushed *and* every line the pushed commits add, so
+content that was committed and later deleted is still caught — deleting a file
+does not remove it from history.
+
+Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Then list your own private vocabulary — client names, project code names — in
+`~/.hoshi/privacy-denylist.txt`, one term per line:
+
+```
+# lines starting with # are ignored
+acme-corp
+project-mercury
+```
+
+That file lives outside the repository on purpose: a list of words you must not
+publish is itself something you must not publish.
+
+The guard runs at push time rather than commit time. Committing something
+private is recoverable; publishing it is not, because GitHub serves blobs by
+SHA long after a rewrite makes them unreachable.
+
+A line that has to look like a leak — a test fixture, an example in the docs —
+opts out with a `privacy-guard-allow` comment on that line. It exempts only the
+line it appears on, and it shows up in review. Turning the guard off for a
+whole push is `PRIVACY_GUARD=off git push`, which does not.
+
+Run `bash tests/test-pre-push.sh` if you change the hook.
+
 ## Project structure
 
 ```
@@ -207,6 +249,8 @@ hoshi/
 │   └── static/              # Dashboard (HTML/JS/CSS)
 ├── hook/
 │   └── hook.sh              # Claude Code hook script
+├── .githooks/
+│   └── pre-push             # Refuses to publish private content
 ├── docker-compose.yml
 ├── .env.example
 └── tokens.json.example
