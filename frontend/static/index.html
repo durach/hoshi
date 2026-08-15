@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ws-token" content="${WS_TOKEN}">
+    <title>Hoshi — Grammar Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Inline and before the stylesheet loads: applied any later, the page
+        // paints dark first and flashes as it corrects itself.
+        try {
+            const saved = localStorage.getItem("hoshi-theme");
+            if (saved === "light" || saved === "dark") {
+                document.documentElement.dataset.theme = saved;
+            }
+        } catch (e) { /* private mode: fall back to the OS preference */ }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Hoshi</h1>
+        <div class="header-actions">
+            <button id="debug-toggle" type="button" title="Debug view" aria-label="Debug view">⚙</button>
+            <button id="theme-toggle" type="button" title="Switch theme" aria-label="Switch theme"></button>
+            <span id="status" class="status disconnected">disconnected</span>
+        </div>
+    </header>
+    <form id="composer" autocomplete="off">
+        <textarea id="composer-input" rows="2"
+                  placeholder="Type something to check — Enter to send, Shift+Enter for a new line"></textarea>
+        <div class="composer-row">
+            <span id="composer-note"></span>
+            <button type="submit">Check</button>
+        </div>
+    </form>
+    <main id="feed"></main>
+    <script src="app.js"></script>
+</body>
+</html>

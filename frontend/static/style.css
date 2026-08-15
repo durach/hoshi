@@ -1,0 +1,482 @@
+/* Everything colour lives in these tokens, so a theme is a palette swap and
+   nothing else. Dark is the default; light is applied either by the toggle
+   (data-theme on <html>) or by the OS when no choice has been made. */
+:root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --inset: #0d1117;
+    /* Same colour as --inset at zero alpha: fading to `transparent` would fade
+       through grey, since transparent is rgba(0, 0, 0, 0). */
+    --inset-fade: rgba(13, 17, 23, 0);
+    --border: #21262d;
+    --fg: #c9d1d9;
+    --fg-muted: #8b949e;
+    --heading: #f0f6fc;
+    --focus: #388bfd;
+
+    --ok: #238636;
+    --ok-hover: #2ea043;
+    --danger: #da3633;
+    --warn: #d29922;
+
+    --c-grammar: #ff7b72;
+    --c-spelling: #d2a8ff;
+    --c-punctuation: #79c0ff;
+    --c-word-choice: #ffa657;
+    --c-style: #8b949e;
+    --c-neutral: #7ee787;
+    --c-claude-code: #ffa657;
+    --c-codex: #56d4a0;
+    --c-dashboard: #79c0ff;
+
+    /* How strongly a tint shows through on tags and highlights. Light needs a
+       lighter touch: the same 18% over white reads as a solid block. */
+    --tint: 18%;
+}
+
+/* The accents are re-picked rather than reused — dark-theme pastels on white
+   have far too little contrast to read as text. */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { color-scheme: light; }
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --bg: #ffffff;
+        --surface: #f6f8fa;
+        --inset: #ffffff;
+        --inset-fade: rgba(255, 255, 255, 0);
+        --border: #d0d7de;
+        --fg: #1f2328;
+        --fg-muted: #656d76;
+        --heading: #1f2328;
+        --focus: #0969da;
+
+        --ok: #1a7f37;
+        --ok-hover: #1f883d;
+        --danger: #cf222e;
+        --warn: #9a6700;
+
+        --c-grammar: #cf222e;
+        --c-spelling: #8250df;
+        --c-punctuation: #0969da;
+        --c-word-choice: #bc4c00;
+        --c-style: #57606a;
+        --c-neutral: #1a7f37;
+        --c-claude-code: #bc4c00;
+        --c-codex: #1a7f37;
+        --c-dashboard: #0969da;
+
+        --tint: 12%;
+    }
+}
+
+:root[data-theme="light"] {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --inset: #ffffff;
+    --inset-fade: rgba(255, 255, 255, 0);
+    --border: #d0d7de;
+    --fg: #1f2328;
+    --fg-muted: #656d76;
+    --heading: #1f2328;
+    --focus: #0969da;
+
+    --ok: #1a7f37;
+    --ok-hover: #1f883d;
+    --danger: #cf222e;
+    --warn: #9a6700;
+
+    --c-grammar: #cf222e;
+    --c-spelling: #8250df;
+    --c-punctuation: #0969da;
+    --c-word-choice: #bc4c00;
+    --c-style: #57606a;
+    --c-neutral: #1a7f37;
+    --c-claude-code: #bc4c00;
+    --c-codex: #1a7f37;
+    --c-dashboard: #0969da;
+
+    --tint: 12%;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: var(--bg);
+    color: var(--fg);
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+}
+
+h1 { font-size: 1.5rem; color: var(--heading); }
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+#theme-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0.3rem 0.5rem;
+}
+#theme-toggle:hover { color: var(--fg); border-color: var(--fg-muted); }
+
+.status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+.status.connected { background: var(--ok); color: #fff; }
+.status.disconnected { background: var(--danger); color: #fff; }
+
+.entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.entry-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+}
+
+#composer {
+    margin-bottom: 1rem;
+}
+#composer-input {
+    width: 100%;
+    background: var(--inset);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.6rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    resize: vertical;
+}
+#composer-input:focus {
+    outline: none;
+    border-color: var(--focus);
+}
+.composer-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.4rem;
+}
+#composer-note {
+    font-size: 0.8rem;
+    color: var(--fg-muted);
+}
+#composer-note.failed { color: var(--danger); }
+#composer button {
+    background: var(--ok);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+#composer button:hover { background: var(--ok-hover); }
+
+/* Which agent the prompt was typed into. One dashboard serves several agents,
+   so the label carries a colour to make the split readable at a glance. */
+.agent {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    background: var(--border);
+    color: var(--fg-muted);
+}
+.agent-claude-code {
+    background: color-mix(in srgb, var(--c-claude-code) var(--tint), transparent);
+    color: var(--c-claude-code);
+}
+.agent-codex {
+    background: color-mix(in srgb, var(--c-codex) var(--tint), transparent);
+    color: var(--c-codex);
+}
+.agent-dashboard {
+    background: color-mix(in srgb, var(--c-dashboard) var(--tint), transparent);
+    color: var(--c-dashboard);
+}
+
+/* Which project the prompt came from — the hook is registered globally. */
+.project {
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--c-punctuation) var(--tint), transparent);
+    color: var(--c-punctuation);
+}
+
+.badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 600;
+}
+/* Issue categories. Style is deliberately quiet — it is a note, not a fault. */
+.type {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 600;
+    border: 1px solid;
+}
+.type-grammar     { color: var(--c-grammar);     border-color: color-mix(in srgb, var(--c-grammar) 45%, transparent); }
+.type-spelling    { color: var(--c-spelling);    border-color: color-mix(in srgb, var(--c-spelling) 45%, transparent); }
+.type-punctuation { color: var(--c-punctuation); border-color: color-mix(in srgb, var(--c-punctuation) 45%, transparent); }
+.type-word-choice { color: var(--c-word-choice); border-color: color-mix(in srgb, var(--c-word-choice) 45%, transparent); }
+.type-style       { color: var(--c-style);       border-color: color-mix(in srgb, var(--c-style) 45%, transparent); }
+
+.badge.clean { background: var(--ok); color: #fff; }
+.badge.issues { background: var(--danger); color: #fff; }
+.badge.error { background: var(--warn); color: #fff; }
+
+.prompt {
+    background: var(--inset);
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 6em;
+    overflow: hidden;
+    position: relative;
+}
+/* Only set when the text really overflows, so short prompts get no false hint. */
+.prompt.clipped { cursor: pointer; }
+.prompt.clipped::after {
+    content: "click to show the rest";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1.2rem 0.5rem 0.3rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.7rem;
+    color: var(--fg-muted);
+    text-align: center;
+    background: linear-gradient(to bottom, var(--inset-fade), var(--inset) 60%);
+}
+.prompt.expanded {
+    max-height: none;
+    cursor: pointer;
+}
+.prompt.expanded::after { content: none; }
+
+.explanation {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+}
+.explanation p { margin-bottom: 0.5rem; }
+
+/* One row per finding, each tagged with its own type. */
+.issue {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+.issue .type { flex: 0 0 auto; }
+.issue-note { flex: 1 1 auto; }
+.issue-note p { display: inline; margin: 0; }
+
+/* Boxed, and captioned, because this is the one part of an entry you might
+   actually take away. Unboxed it ran on from the notes above it as if it were
+   another one of them. */
+.correction {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.6rem;
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+/* Line breaks survive: a multi-paragraph correction rendered as one run-on
+   line is unreadable, and the segments carry their own whitespace. */
+.correction {
+    white-space: pre-wrap;
+    line-height: 1.7;
+}
+/* Removed text. Uniformly struck rather than typed — on a deletion the model
+   marks a surviving neighbour, so the removed words have no issue type. */
+.correction del {
+    background: color-mix(in srgb, var(--c-grammar) var(--tint), transparent);
+    color: var(--c-grammar);
+    text-decoration: line-through;
+    padding: 0.05rem 0.25rem;
+    border-radius: 3px;
+}
+/* Inserted text, coloured by the issue it fixes. The fallback green is for a
+   change the model made without attributing it to any finding. */
+.correction ins {
+    background: color-mix(in srgb, var(--c-neutral) var(--tint), transparent);
+    color: var(--c-neutral);
+    text-decoration: none;
+    padding: 0.05rem 0.25rem;
+    border-radius: 3px;
+    font-weight: 600;
+    margin-left: 0.15rem;
+}
+.correction ins.ins-grammar     { background: color-mix(in srgb, var(--c-grammar) var(--tint), transparent);     color: var(--c-grammar); }
+.correction ins.ins-spelling    { background: color-mix(in srgb, var(--c-spelling) var(--tint), transparent);    color: var(--c-spelling); }
+.correction ins.ins-punctuation { background: color-mix(in srgb, var(--c-punctuation) var(--tint), transparent); color: var(--c-punctuation); }
+.correction ins.ins-word-choice { background: color-mix(in srgb, var(--c-word-choice) var(--tint), transparent); color: var(--c-word-choice); }
+.correction ins.ins-style       { background: color-mix(in srgb, var(--c-style) var(--tint), transparent);       color: var(--c-style); }
+
+.correction::before {
+    content: "corrected";
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+.correction p:last-child, .correction ol:last-child, .correction ul:last-child {
+    margin-bottom: 0;
+}
+.correction ol, .correction ul { padding-left: 1.2rem; }
+.explanation code {
+    background: color-mix(in srgb, var(--fg-muted) 15%, transparent);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+/* Spans the model marked as changed in its corrected text. The colour matches
+   the tag of the issue that span fixes; green is the fallback when the model
+   gave no type. */
+.explanation mark {
+    background: color-mix(in srgb, var(--c-neutral) var(--tint), transparent);
+    color: var(--c-neutral);
+    padding: 0.05rem 0.25rem;
+    border-radius: 3px;
+    font-weight: 600;
+}
+.explanation mark.mark-grammar     { background: color-mix(in srgb, var(--c-grammar) var(--tint), transparent);     color: var(--c-grammar); }
+.explanation mark.mark-spelling    { background: color-mix(in srgb, var(--c-spelling) var(--tint), transparent);    color: var(--c-spelling); }
+.explanation mark.mark-punctuation { background: color-mix(in srgb, var(--c-punctuation) var(--tint), transparent); color: var(--c-punctuation); }
+.explanation mark.mark-word-choice { background: color-mix(in srgb, var(--c-word-choice) var(--tint), transparent); color: var(--c-word-choice); }
+.explanation mark.mark-style       { background: color-mix(in srgb, var(--c-style) var(--tint), transparent);       color: var(--c-style); }
+
+/* The debug view. Hidden entirely unless the toggle is on, so the normal feed
+   is untouched by any of this. */
+#debug-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0.3rem 0.5rem;
+}
+#debug-toggle:hover { color: var(--fg); border-color: var(--fg-muted); }
+#debug-toggle.active { color: var(--c-word-choice); border-color: var(--c-word-choice); }
+
+.debug-link, .ghost-flag { display: none; }
+body.debug-on .debug-link {
+    display: inline-block;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+}
+body.debug-on .debug-link:hover { color: var(--fg); }
+body.debug-on .ghost-flag {
+    display: inline-block;
+    background: color-mix(in srgb, var(--c-grammar) var(--tint), transparent);
+    color: var(--c-grammar);
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+}
+
+.debug-panel {
+    margin-top: 0.75rem;
+    padding: 0.6rem;
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+.debug-verdict { color: var(--c-grammar); font-weight: 600; margin-bottom: 0.5rem; }
+.debug-ok { color: var(--fg-muted); margin-bottom: 0.5rem; }
+.debug-dropped { color: var(--c-word-choice); margin: 0.5rem 0; }
+.debug-diff { line-height: 1.6; margin-bottom: 0.5rem; }
+.debug-diff .d-equal { color: var(--fg-muted); }
+.debug-diff del {
+    background: color-mix(in srgb, var(--c-grammar) var(--tint), transparent);
+    color: var(--c-grammar);
+    text-decoration: line-through;
+    padding: 0.05rem 0.2rem;
+    border-radius: 3px;
+}
+.debug-diff ins {
+    background: color-mix(in srgb, var(--c-neutral) var(--tint), transparent);
+    color: var(--c-neutral);
+    text-decoration: none;
+    padding: 0.05rem 0.2rem;
+    border-radius: 3px;
+    margin-left: 0.2rem;
+}
+.debug-meta {
+    color: var(--fg-muted);
+    font-family: monospace;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.debug-raw {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    max-height: 18em;
+    overflow: auto;
+    padding: 0.5rem;
+    white-space: pre;
+}

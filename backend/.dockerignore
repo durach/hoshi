@@ -1,0 +1,13 @@
+# Tooling caches — .mypy_cache alone is ~90MB of build context
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+# Not needed at runtime
+tests/
+requirements-dev.txt
+
+.venv/
+.DS_Store

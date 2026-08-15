@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    volumes:
+      - ./tokens.json:/app/tokens.json:ro
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    environment:
+      - WS_TOKEN=${WS_TOKEN:-}
+    # Loopback only — the dashboard has no auth of its own, and its HTML carries
+    # the WS token. Reached via the local Caddy host (http://hoshi.localhost).
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - backend
