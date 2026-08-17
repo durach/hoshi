@@ -27,6 +27,9 @@ from store import CheckResult, ResultStore
 async def lifespan(app: FastAPI):
     settings = Settings()
     app.state.background_tasks = set()
+    # (result_id, checker) pairs currently running. A plain set: mutated only
+    # between awaits, so the event loop makes add/discard atomic without a lock.
+    app.state.in_flight_opinions = set()
     app.state.store = ResultStore()
     app.state.auth = TokenAuth(settings.tokens_file)
     app.state.checkers = load_checkers(
@@ -235,37 +238,57 @@ async def add_opinion(
     attached = {result.checker} | {o["checker"] for o in result.opinions}
     if body.checker in attached:
         raise HTTPException(status_code=422, detail="checker already ran on this result")
-    task = asyncio.create_task(_run_opinion(store, checkers, result, body.checker))
+    in_flight = request.app.state.in_flight_opinions
+    key = (result_id, body.checker)
+    if key in in_flight:
+        raise HTTPException(status_code=422, detail="checker already running for this result")
+    in_flight.add(key)
+    task = asyncio.create_task(_run_opinion(store, checkers, result, body.checker, in_flight, key))
     request.app.state.background_tasks.add(task)
     task.add_done_callback(request.app.state.background_tasks.discard)
     return {"status": "accepted"}
 
 
-async def _run_opinion(store: ResultStore, checkers, result: CheckResult, name: str):
-    cfg = checkers.configs[name]
-    request_meta = {
-        "checker": name,
-        "provider": cfg.provider,
-        "model": cfg.model,
-        "system_prompt_hash": SYSTEM_PROMPT_HASH,
-    }
-    fields, debug = await _perform_check(checkers.providers[name], result.prompt, request_meta)
-    # Re-check under the running loop: two clicks can race the 422 guard, and
-    # the second to finish must not attach a duplicate.
-    if name in {o["checker"] for o in result.opinions}:
-        return
-    result.opinions.append(
-        {
+async def _run_opinion(
+    store: ResultStore,
+    checkers,
+    result: CheckResult,
+    name: str,
+    in_flight: set,
+    key: tuple,
+):
+    try:
+        cfg = checkers.configs[name]
+        request_meta = {
             "checker": name,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "has_ghost_marks": bool((debug.get("analysis") or {}).get("ghost_marks")),
-            **fields,
+            "provider": cfg.provider,
+            "model": cfg.model,
+            "system_prompt_hash": SYSTEM_PROMPT_HASH,
         }
-    )
-    if result.debug is None:
-        result.debug = {}
-    result.debug.setdefault("opinions", {})[name] = debug
-    await store.broadcast(result)
+        fields, debug = await _perform_check(checkers.providers[name], result.prompt, request_meta)
+        # Re-check under the running loop: two clicks can race the 422 guard, and
+        # the second to finish must not attach a duplicate.
+        if name in {o["checker"] for o in result.opinions}:
+            return
+        # A multi-minute run can outlive the result's slot in the capped deque.
+        # Attaching now would broadcast a ghost entry /api/results no longer
+        # returns, so drop it silently once the parent result is gone.
+        if result not in store.results:
+            return
+        result.opinions.append(
+            {
+                "checker": name,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "has_ghost_marks": bool((debug.get("analysis") or {}).get("ghost_marks")),
+                **fields,
+            }
+        )
+        if result.debug is None:
+            result.debug = {}
+        result.debug.setdefault("opinions", {})[name] = debug
+        await store.broadcast(result)
+    finally:
+        in_flight.discard(key)
 
 
 @app.websocket("/ws")

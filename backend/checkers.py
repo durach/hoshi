@@ -45,6 +45,8 @@ def _parse(path: Path) -> list[CheckerConfig]:
 
     configs: list[CheckerConfig] = []
     for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError(f"checker entry {entry!r} must be an object")
         name = str(entry.get("name", ""))
         if not NAME_RE.match(name):
             raise ValueError(f"checker name {name!r} is not a slug (^[a-z0-9-]{{1,32}}$)")

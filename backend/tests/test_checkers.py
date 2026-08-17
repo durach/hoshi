@@ -73,6 +73,7 @@ def test_a_directory_counts_as_absent(tmp_path):
         ({"checkers": [{"name": "Bad Name", "provider": "openai", "model": "m",
                         "default": True}]}, "slug"),
         ({"checkers": [{"name": "a", "provider": "openai", "default": True}]}, "model"),
+        ({"checkers": ["oops"]}, "must be an object"),
     ],
 )
 def test_invalid_configs_die_loudly(tmp_path, data, match):

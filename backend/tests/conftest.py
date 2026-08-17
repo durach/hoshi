@@ -51,6 +51,7 @@ async def settings():
 @pytest_asyncio.fixture
 async def client(store, auth, provider, settings):
     app.state.background_tasks = set()
+    app.state.in_flight_opinions = set()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
