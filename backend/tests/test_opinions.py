@@ -82,6 +82,8 @@ async def test_opinion_lands_and_rebroadcasts(client, store, auth, provider):
         default="default",
     )
     await seed_result(store, checker="default")
+    ws = AsyncMock()
+    store.connect(ws)
     resp = await client.post(
         f"/api/results/{store.results[-1].id}/checks",
         json={"checker": "second"},
@@ -95,6 +97,7 @@ async def test_opinion_lands_and_rebroadcasts(client, store, auth, provider):
     assert result.opinions[0]["status"] == "clean"
     assert "raw" not in result.opinions[0]
     assert result.debug["opinions"]["second"]["request"]["checker"] == "second"
+    ws.send_json.assert_awaited_once_with(result.to_dict())
 
     resp = await client.post(
         f"/api/results/{result.id}/checks",
@@ -122,6 +125,8 @@ async def test_failed_opinion_is_an_error_opinion(client, store, auth, provider)
         default="default",
     )
     await seed_result(store, checker="default")
+    ws = AsyncMock()
+    store.connect(ws)
     resp = await client.post(
         f"/api/results/{store.results[-1].id}/checks",
         json={"checker": "second"},
@@ -133,3 +138,4 @@ async def test_failed_opinion_is_an_error_opinion(client, store, auth, provider)
     result = store.results[-1]
     assert result.opinions[0]["checker"] == "second"
     assert result.opinions[0]["status"] == "error"
+    ws.send_json.assert_awaited_once_with(result.to_dict())
