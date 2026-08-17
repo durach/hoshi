@@ -1,11 +1,11 @@
 # Local checker and second opinions — design in progress
 
 **Date:** 2026-08-10
-**Status:** brainstorm interrupted, one question open
+**Status:** resolved — the open question was decided on 2026-08-15 (option A);
+see [2026-08-15-checkers-config-design.md](2026-08-15-checkers-config-design.md)
 
 This design was started in a session that was forked and then closed. Recovered
-from its transcript so the decisions below are not re-litigated. Resume at
-**Open question**.
+from its transcript so the decisions below are not re-litigated.
 
 ## Why
 
