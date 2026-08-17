@@ -262,6 +262,16 @@ h1 { font-size: 1.5rem; color: var(--heading); }
 .type-word-choice { color: var(--c-word-choice); border-color: color-mix(in srgb, var(--c-word-choice) 45%, transparent); }
 .type-style       { color: var(--c-style);       border-color: color-mix(in srgb, var(--c-style) 45%, transparent); }
 
+/* Which checker produced a verdict — mirrors .project's quiet chip look. */
+.checker {
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    color: var(--fg-muted);
+    border: 1px solid var(--border);
+}
+
 .badge.clean { background: var(--ok); color: #fff; }
 .badge.issues { background: var(--danger); color: #fff; }
 .badge.error { background: var(--warn); color: #fff; }
@@ -397,6 +407,37 @@ h1 { font-size: 1.5rem; color: var(--heading); }
 .explanation mark.mark-punctuation { background: color-mix(in srgb, var(--c-punctuation) var(--tint), transparent); color: var(--c-punctuation); }
 .explanation mark.mark-word-choice { background: color-mix(in srgb, var(--c-word-choice) var(--tint), transparent); color: var(--c-word-choice); }
 .explanation mark.mark-style       { background: color-mix(in srgb, var(--c-style) var(--tint), transparent);       color: var(--c-style); }
+
+/* A second opinion nests inside the entry, visually subordinate to it. */
+.opinion {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+.opinion-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.opinion-offer {
+    margin-top: 0.6rem;
+}
+.opinion-link {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    color: var(--fg-muted);
+    background: none;
+    border: 1px solid var(--border);
+    cursor: pointer;
+}
+.opinion-link:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
 
 /* The debug view. Hidden entirely unless the toggle is on, so the normal feed
    is untouched by any of this. */

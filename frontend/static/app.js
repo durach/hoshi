@@ -2,10 +2,13 @@ const feed = document.getElementById("feed");
 const status = document.getElementById("status");
 const token = document.querySelector('meta[name="ws-token"]')?.content || "";
 
-// Results already rendered, by id — history is re-fetched on every reconnect,
-// so the same result can legitimately arrive twice. Ids are only unique within
-// one backend run; currentRun tracks which run they belong to.
-const seen = new Set();
+// Results already rendered, by id, mapped to their element — history is
+// re-fetched on every reconnect, so the same result can legitimately arrive
+// twice, and a later broadcast of the same id (a second opinion attached)
+// replaces the existing element in place rather than being dropped. Ids are
+// only unique within one backend run; currentRun tracks which run they
+// belong to.
+const entries = new Map();
 let currentRun = null;
 
 // Mirrors ISSUE_TYPES in backend/providers/__init__.py.
@@ -108,6 +111,7 @@ function connect() {
         status.textContent = "connected";
         status.className = "status connected";
         loadHistory();
+        loadCheckers();
     };
 
     ws.onclose = (event) => {
@@ -151,6 +155,23 @@ async function loadHistory() {
         addEntry(item);
     }
     pending = [];
+}
+
+// The configured checkers, for the "check with…" control. Loaded once; a
+// failure just means the control never appears, which is the right degradation.
+let availableCheckers = [];
+
+async function loadCheckers() {
+    try {
+        const resp = await fetch("/api/checkers", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resp.ok) {
+            availableCheckers = (await resp.json()).checkers || [];
+        }
+    } catch (e) {
+        // Leave the list empty.
+    }
 }
 
 // --- Composer: check text typed straight into the dashboard ----------------
@@ -217,41 +238,11 @@ function updateNote() {
     composerNote.textContent = pendingChecks.size ? `checking ${pendingChecks.size}…` : "";
 }
 
-function addEntry(data) {
-    // A new run means the backend restarted and its store is empty, so ids
-    // start over and whatever is on screen is stale. Drop it and rebuild.
-    if (data.run_id && data.run_id !== currentRun) {
-        currentRun = data.run_id;
-        seen.clear();
-        feed.innerHTML = "";
-    }
-    if (seen.has(data.id)) {
-        return;
-    }
-    seen.add(data.id);
-
-    const entry = document.createElement("div");
-    entry.className = "entry";
-
-    const time = new Date(data.timestamp).toLocaleString();
-    const badgeClass = data.status === "error" ? "error" : data.has_issues ? "issues" : "clean";
-    const badgeText = data.status === "error" ? "error" : data.has_issues ? "issues found" : "clean";
-
-    // Which agent the prompt was typed into. Only known slugs get a colour
-    // class; an unknown one is still shown, just escaped and left neutral.
-    const agentTag = data.agent
-        ? `<span class="agent${
-              AGENT_LABELS[data.agent] ? ` agent-${data.agent}` : ""
-          }">${escapeHtml(AGENT_LABELS[data.agent] || data.agent)}</span>`
-        : "";
-
-    // Types are a fixed server-side vocabulary, but they are rendered as class
-    // names, so anything unexpected is dropped rather than injected.
-    const types = (data.types || []).filter((t) => TYPE_LABELS.includes(t));
-    const typeTags = types
-        .map((t) => `<span class="type type-${t}">${t}</span>`)
-        .join("");
-
+// The verdict body shared by the main result and each second opinion: the
+// issue list and the correction diff, coloured by the issue each change
+// fixes. `data` is either the top-level result or one entry of its
+// `opinions` — both carry the same rendering keys.
+function renderVerdict(data) {
     // Each finding carries its own type. `explanation` still arrives on the
     // error path, where there are no structured issues to show.
     const issueRows = (data.issues || [])
@@ -298,10 +289,78 @@ function addEntry(data) {
             ? `<div class="explanation">${DOMPurify.sanitize(marked.parse(data.explanation))}</div>`
             : "";
 
-    const body =
-        issueRows || correctionHtml || fallback
-            ? `<div class="explanation">${issueRows}${correctionHtml}${fallback}</div>`
-            : "";
+    return issueRows || correctionHtml || fallback
+        ? `<div class="explanation">${issueRows}${correctionHtml}${fallback}</div>`
+        : "";
+}
+
+function addEntry(data) {
+    // A new run means the backend restarted and its store is empty, so ids
+    // start over and whatever is on screen is stale. Drop it and rebuild.
+    if (data.run_id && data.run_id !== currentRun) {
+        currentRun = data.run_id;
+        entries.clear();
+        feed.innerHTML = "";
+    }
+    const existing = entries.get(data.id);
+
+    const entry = document.createElement("div");
+    entry.className = "entry";
+
+    const time = new Date(data.timestamp).toLocaleString();
+    const badgeClass = data.status === "error" ? "error" : data.has_issues ? "issues" : "clean";
+    const badgeText = data.status === "error" ? "error" : data.has_issues ? "issues found" : "clean";
+
+    // Which agent the prompt was typed into. Only known slugs get a colour
+    // class; an unknown one is still shown, just escaped and left neutral.
+    const agentTag = data.agent
+        ? `<span class="agent${
+              AGENT_LABELS[data.agent] ? ` agent-${data.agent}` : ""
+          }">${escapeHtml(AGENT_LABELS[data.agent] || data.agent)}</span>`
+        : "";
+
+    // Which checker produced this verdict.
+    const checkerTag = data.checker
+        ? `<span class="checker">${escapeHtml(data.checker)}</span>`
+        : "";
+
+    // Types are a fixed server-side vocabulary, but they are rendered as class
+    // names, so anything unexpected is dropped rather than injected.
+    const types = (data.types || []).filter((t) => TYPE_LABELS.includes(t));
+    const typeTags = types
+        .map((t) => `<span class="type type-${t}">${t}</span>`)
+        .join("");
+
+    const body = renderVerdict(data);
+
+    // Checkers not yet attached to this result, offered as "check with…"
+    // buttons — never on an error entry, since there is nothing to re-check.
+    const attached = new Set([data.checker, ...(data.opinions || []).map((o) => o.checker)]);
+    const offers = data.status === "error" ? [] : availableCheckers.filter((c) => !attached.has(c.name));
+    const opinionControls = offers.length
+        ? `<div class="opinion-offer">${offers
+              .map(
+                  (c) =>
+                      `<button type="button" class="opinion-link" data-id="${data.id}" data-checker="${escapeHtml(c.name)}">check with ${escapeHtml(c.name)}</button>`
+              )
+              .join("")}</div>`
+        : "";
+
+    // A second opinion nests inside the entry, visually subordinate to it,
+    // sharing the same verdict rendering as the main result.
+    const opinionBlocks = (data.opinions || [])
+        .map((o) => {
+            const oBadgeClass = o.status === "error" ? "error" : o.has_issues ? "issues" : "clean";
+            const oBadgeText = o.status === "error" ? "error" : o.has_issues ? "issues found" : "clean";
+            return `<div class="opinion">
+                <div class="opinion-header">
+                    <span class="checker">${escapeHtml(o.checker)}</span>
+                    <span class="badge ${oBadgeClass}">${oBadgeText}</span>
+                </div>
+                ${renderVerdict(o)}
+            </div>`;
+        })
+        .join("");
 
     // Rendered always, revealed by CSS only under the debug toggle — so the
     // feed never has to be rebuilt when the toggle flips.
@@ -314,6 +373,7 @@ function addEntry(data) {
         <div class="entry-header">
             <strong>${escapeHtml(data.username)}</strong>
             ${agentTag}
+            ${checkerTag}
             ${data.project ? `<span class="project">${escapeHtml(data.project)}</span>` : ""}
             <span>${time}</span>
             <span class="badge ${badgeClass}">${badgeText}</span>
@@ -323,9 +383,18 @@ function addEntry(data) {
         </div>
         <div class="prompt">${escapeHtml(data.prompt)}</div>
         ${body}
+        ${opinionBlocks}
+        ${opinionControls}
     `;
 
-    feed.prepend(entry);
+    if (existing) {
+        // A re-broadcast: the result gained an opinion. Same position, new
+        // content — an open debug panel is dropped rather than kept stale.
+        existing.replaceWith(entry);
+    } else {
+        feed.prepend(entry);
+    }
+    entries.set(data.id, entry);
 
     // Long prompts are clipped. Offer expansion only when something is actually
     // hidden, and say so — otherwise the explanation discusses sentences that
@@ -377,6 +446,30 @@ connect();
 // One listener on the feed rather than one per entry: entries are prepended
 // continuously, and a delegated handler covers the ones not yet created.
 feed.addEventListener("click", async (event) => {
+    const opinionLink = event.target.closest(".opinion-link");
+    if (opinionLink) {
+        opinionLink.disabled = true;
+        opinionLink.textContent = "checking…";
+        try {
+            const resp = await fetch(`/api/results/${opinionLink.dataset.id}/checks`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ checker: opinionLink.dataset.checker }),
+            });
+            if (!resp.ok) {
+                opinionLink.textContent = `failed (${resp.status})`;
+            }
+            // On success the re-broadcast replaces the whole entry.
+        } catch (e) {
+            opinionLink.disabled = false;
+            opinionLink.textContent = `check with ${opinionLink.dataset.checker}`;
+        }
+        return;
+    }
+
     const link = event.target.closest(".debug-link");
     if (!link) {
         return;
