@@ -107,11 +107,16 @@ function connect() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     ws = new WebSocket(`${proto}//${location.host}/ws?token=${encodeURIComponent(token)}`);
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
         status.textContent = "connected";
         status.className = "status connected";
+        // The checker list is static per backend run, so it only needs
+        // fetching once — but it must land before history renders, or the
+        // first render of every history entry sees an empty list and their
+        // "check with…" buttons never come back (nothing re-renders them
+        // later just because the list arrived).
+        await loadCheckers();
         loadHistory();
-        loadCheckers();
     };
 
     ws.onclose = (event) => {
@@ -544,11 +549,28 @@ function renderDebug(debug) {
         ? `<div class="debug-verdict">${escapeHtml(debug.error.type)}: ${escapeHtml(debug.error.message)}</div>`
         : "";
 
+    // Each attached second opinion carries its own debug record, in the same
+    // shape as this one — nest it the same way the dashboard nests the
+    // opinion's verdict under the main result, reusing that markup rather
+    // than inventing a parallel one.
+    const opinions = debug.opinions || {};
+    const opinionsHtml = Object.keys(opinions).length
+        ? Object.entries(opinions)
+              .map(
+                  ([name, oDebug]) => `<div class="opinion">
+                      <div class="opinion-header"><span class="checker">${escapeHtml(name)}</span></div>
+                      ${renderDebug(oDebug)}
+                  </div>`
+              )
+              .join("")
+        : "";
+
     return `
         ${errorHtml}
         ${debug.error ? "" : analysisHtml}
         ${droppedHtml}
         <div class="debug-meta">${meta}</div>
         <pre class="debug-raw">${escapeHtml(JSON.stringify(debug.raw || {}, null, 2))}</pre>
+        ${opinionsHtml}
     `;
 }
