@@ -428,7 +428,9 @@ function addEntry(data) {
 function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
-    return div.innerHTML;
+    // textContent->innerHTML escapes &<> as a text node, but quotes are only
+    // dangerous in an attribute sink, which a text node has no notion of.
+    return div.innerHTML.replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 // Coming back to the tab is the moment staleness gets noticed, and a socket
