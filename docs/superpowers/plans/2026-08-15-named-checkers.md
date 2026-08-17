@@ -975,7 +975,7 @@ Match the exact property style of the existing `.project` / `.debug-link` rules 
 
 - [ ] **Step 2: gitignore + compose.** Add `checkers.json` to `.gitignore` (after `tokens.json`). In `docker-compose.yml`, under the backend's `volumes`, add `- ./checkers.json:/app/checkers.json:ro` with the comment: `# Optional; without the host file compose mounts a directory, which the loader treats as absent.`
 
-- [ ] **Step 3: The real config** — write `checkers.json` (gitignored) for this machine: `terra` (openai, `gpt-5.6-terra`, default), `luna` (openai, `gpt-5.6-luna`), `qwen` (openai, `qwen3:4b`, base_url `http://host.docker.internal:11434/v1`).
+- [ ] **Step 3: The real config** — write `checkers.json` (gitignored) for this machine: `terra` (openai, `gpt-5.6-terra`, default), `luna` (openai, `gpt-5.6-luna`), `qwen-mac` (openai, `qwen3:4b`, base_url `http://host.docker.internal:11434/v1`), and `qwen-emily` (openai, `qwen3:4b`, base_url pointing at the LAN CUDA box — its address lives in the private infra notes and in this gitignored file only, never in committed text; the same model on two hosts makes the speed comparison a pair of "check with…" clicks on one result).
 
 - [ ] **Step 4: README.** In Quick start step 1, after the `tokens.json` copy: `cp checkers.json.example checkers.json  # optional — omit it and PROVIDER/MODEL from .env apply`. Add a short section after **Supported providers** titled **Multiple checkers**, stating: the file's shape (name/provider/model/default/base_url), exactly-one-default rule, that the hook always uses the default, that other checkers appear as a "check with…" button on each dashboard entry, and that a local Ollama model is just an `openai` entry with a `base_url` (no key needed). Include the JSON example from Step 1 verbatim.
 
@@ -1004,7 +1004,7 @@ No new code — proof the pieces meet. Uses the project's `verify-dashboard` ski
 
 - [ ] **Step 3: Seed and verify in the browser** at the dashboard: seed one prompt via the API (any fixture prompt from the verify-dashboard skill, never live text). Confirm: the entry shows its checker badge (`terra`); a "check with luna" (and `qwen`) button is present; clicking it shows "checking…", then the entry re-renders in place with a nested opinion block labelled `luna` carrying its own badge and diff; the button for `luna` is gone and `qwen`'s remains; the debug panel under the toggle shows `opinions.luna` in the raw JSON; no `debug` key in the WebSocket frames (check DevTools → Network → WS).
 
-- [ ] **Step 4: The local checker, if Ollama is up** — click "check with qwen": an opinion appears (or an error opinion if the model misbehaves — also a valid render to verify). If Ollama is not running, the error opinion path is the verification.
+- [ ] **Step 4: The local checkers** — on one seeded result, click "check with qwen-emily" and then "check with qwen-mac": two opinions appear (an error opinion, if a host is down or the model misbehaves, is also a valid render to verify). Fetch the result's debug record and note both `opinions.<name>.timing.latency_ms` values in the ledger — the first datapoint of the CUDA-vs-M5 speed comparison. Same model on both hosts, so verdicts should agree up to sampling noise; a systematic quality difference here would itself be a finding worth recording.
 
 - [ ] **Step 5: Restart-reset proof.** `docker compose -p hoshi restart backend`, seed one prompt, confirm the dashboard dropped the old entries and shows the new one (the `run_id` reset path still works with the Map).
 
