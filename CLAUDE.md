@@ -56,6 +56,7 @@ Dashboard at `http://localhost:8080`.
   runs from `backend/`
 - `WS_TOKEN` must be set in `.env` and match a key in `tokens.json`, or the
   dashboard's WebSocket and `/api/results` both fail auth
+- `checkers.json` follows the `tokens.json` pattern (gitignored, `.example` committed, loaded at startup, restart after changes). Exactly one `default: true` or the backend refuses to start. A missing file falls back to `PROVIDER`/`MODEL` from `.env`. Opinions live on the parent result and their debug records under `debug["opinions"]`, which stays off the WebSocket like all debug.
 
 ### How a check is shaped
 - Providers do not return prose JSON. Each uses its own structured-output

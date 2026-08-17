@@ -35,6 +35,7 @@ agent prompt → async hook (curl) → FastAPI backend → LLM grammar check →
 ```bash
 cp .env.example .env
 cp tokens.json.example tokens.json
+cp checkers.json.example checkers.json  # optional — omit it and PROVIDER/MODEL from .env apply
 ```
 
 Edit `.env` with your LLM provider and API key:
@@ -130,6 +131,27 @@ Start typing prompts — grammar check results appear on the dashboard.
 | Google Gemini | `gemini` | `gemini-2.5-flash` | `GEMINI_API_KEY` |
 
 Only set the API key for the provider you're using.
+
+## Multiple checkers
+
+Name different grammarians and switch between them on the dashboard. The `checkers.json` file
+lists each checker's name, provider, model, and optional `base_url` for local services. Exactly
+one must have `"default": true` — the hook always uses this checker. Other checkers appear as
+a "check with…" button on each dashboard result, so you can compare implementations.
+
+A local Ollama model is just an `openai` provider entry with a `base_url` — no API key needed:
+
+```json
+{
+  "checkers": [
+    { "name": "cloud", "provider": "openai", "model": "gpt-5.6-terra", "default": true },
+    { "name": "local", "provider": "openai", "model": "qwen3:4b",
+      "base_url": "http://host.docker.internal:11434/v1" }
+  ]
+}
+```
+
+Omit `checkers.json` or delete it, and the backend falls back to the single `PROVIDER`/`MODEL` from `.env`.
 
 ## Development
 

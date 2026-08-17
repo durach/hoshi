@@ -4,6 +4,7 @@ services:
     env_file: .env
     volumes:
       - ./tokens.json:/app/tokens.json:ro
+      - ./checkers.json:/app/checkers.json:ro  # Optional; without the host file compose mounts a directory, which the loader treats as absent.
     expose:
       - "8000"
 

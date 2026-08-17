@@ -1,5 +1,6 @@
 .env
 tokens.json
+checkers.json
 __pycache__/
 *.pyc
 .pytest_cache/
