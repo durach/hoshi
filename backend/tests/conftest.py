@@ -26,8 +26,18 @@ async def auth():
 
 @pytest_asyncio.fixture
 async def provider():
+    from checkers import CheckerConfig, Checkers
+
     p = MagicMock()
-    app.state.provider = p
+    app.state.checkers = Checkers(
+        providers={"default": p},
+        configs={
+            "default": CheckerConfig(
+                name="default", provider="test", model="test-model", default=True
+            )
+        },
+        default="default",
+    )
     yield p
 
 

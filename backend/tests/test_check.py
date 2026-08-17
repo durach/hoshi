@@ -1,8 +1,9 @@
-from unittest.mock import patch
+import asyncio
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from main import _run_check
+from main import _run_check, app
 from providers import GrammarResult
 
 
@@ -102,3 +103,18 @@ async def test_a_successful_check_captures_the_whole_debug_record(store):
     assert stored.debug["raw"] == result.raw
     assert stored.debug["timing"]["usage"] == {"input_tokens": 12, "output_tokens": 8}
     assert stored.debug["analysis"]["no_op"] is False
+
+
+@pytest.mark.asyncio
+async def test_result_records_which_checker_ran(client, store, auth, provider):
+    auth._tokens = {"tok": "user"}
+    provider.check_grammar = AsyncMock(
+        return_value=GrammarResult(has_issues=False, explanation="")
+    )
+    await client.post("/api/check", json={"prompt": "hi"},
+                      headers={"Authorization": "Bearer tok"})
+    await asyncio.gather(*app.state.background_tasks)
+    result = store.results[-1]
+    assert result.checker == "default"
+    assert result.debug["request"]["checker"] == "default"
+    assert result.debug["request"]["model"] == "test-model"

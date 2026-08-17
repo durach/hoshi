@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 from starlette.testclient import TestClient
 
@@ -16,7 +14,6 @@ def ws_app():
     a = TokenAuth.__new__(TokenAuth)
     a._tokens = {"valid_token": "alice"}
     app.state.auth = a
-    app.state.provider = MagicMock()
     return app
 
 

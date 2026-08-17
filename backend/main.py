@@ -16,8 +16,9 @@ from pydantic import BaseModel, Field
 
 from analysis import analyse
 from auth import TokenAuth
+from checkers import load_checkers
 from config import Settings
-from providers import SYSTEM_PROMPT, SYSTEM_PROMPT_HASH, create_provider
+from providers import SYSTEM_PROMPT, SYSTEM_PROMPT_HASH
 from store import CheckResult, ResultStore
 
 
@@ -27,9 +28,10 @@ async def lifespan(app: FastAPI):
     app.state.background_tasks = set()
     app.state.store = ResultStore()
     app.state.auth = TokenAuth(settings.tokens_file)
-    app.state.provider = create_provider(
-        settings.provider,
-        settings.model,
+    app.state.checkers = load_checkers(
+        settings.checkers_file,
+        fallback_provider=settings.provider,
+        fallback_model=settings.model,
         anthropic_api_key=settings.anthropic_api_key,
         openai_api_key=settings.openai_api_key,
         gemini_api_key=settings.gemini_api_key,
@@ -101,16 +103,20 @@ async def check(
     body: CheckRequest,
     username: str = Depends(require_username),
 ):
+    checkers = request.app.state.checkers
+    name = checkers.default
+    cfg = checkers.configs[name]
     task = asyncio.create_task(
         _run_check(
             request.app.state.store,
-            request.app.state.provider,
+            checkers.providers[name],
             username,
             body.prompt,
             body.project,
             body.agent,
-            provider_name=request.app.state.settings.provider,
-            model=request.app.state.settings.model,
+            checker=name,
+            provider_name=cfg.provider,
+            model=cfg.model,
         )
     )
     request.app.state.background_tasks.add(task)
@@ -118,22 +124,13 @@ async def check(
     return {"status": "accepted"}
 
 
-async def _run_check(
-    store: ResultStore,
-    provider,
-    username: str,
-    prompt: str,
-    project: str = "",
-    agent: str = "",
-    *,
-    provider_name: str = "",
-    model: str = "",
-):
-    request_meta = {
-        "provider": provider_name,
-        "model": model,
-        "system_prompt_hash": SYSTEM_PROMPT_HASH,
-    }
+async def _perform_check(provider, prompt: str, request_meta: dict) -> tuple[dict, dict]:
+    """Run one checker over one prompt.
+
+    Returns (fields, debug): fields is what a verdict looks like wherever it
+    lands — a fresh CheckResult or an opinion on an existing one — and debug is
+    the record that never rides the WebSocket.
+    """
     started = time.perf_counter()
     try:
         result = await provider.check_grammar(prompt)
@@ -144,45 +141,68 @@ async def _run_check(
             # Observation only. A fault in it must not reach the except below
             # and turn a perfectly good verdict into an error result.
             analysis = {}
-        check_result = CheckResult(
-            username=username,
-            prompt=prompt,
-            has_issues=result.has_issues,
-            explanation=result.explanation,
-            types=result.types,
-            issues=result.issues,
-            correction=result.correction,
-            diff=analysis.get("diff", []),
-            project=project,
-            agent=agent,
-            debug={
-                "request": request_meta,
-                "raw": result.raw,
-                "derived": {"dropped_issues": result.dropped_issues},
-                "timing": {"latency_ms": elapsed_ms, "usage": result.usage},
-                "analysis": analysis,
-            },
-        )
-        await store.add_and_broadcast(check_result)
+        fields = {
+            "has_issues": result.has_issues,
+            "explanation": result.explanation,
+            "status": "issues" if result.has_issues else "clean",
+            "types": result.types,
+            "issues": result.issues,
+            "correction": result.correction,
+            "diff": analysis.get("diff", []),
+        }
+        debug = {
+            "request": request_meta,
+            "raw": result.raw,
+            "derived": {"dropped_issues": result.dropped_issues},
+            "timing": {"latency_ms": elapsed_ms, "usage": result.usage},
+            "analysis": analysis,
+        }
     except Exception as e:
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        error_result = CheckResult(
-            username=username,
-            prompt=prompt,
-            has_issues=False,
-            explanation=f"Grammar check failed: {e}",
-            status="error",
-            project=project,
-            agent=agent,
-            # A failure previously left only the formatted message. The type is
-            # what tells a timeout apart from a schema rejection.
-            debug={
-                "request": request_meta,
-                "error": {"type": type(e).__name__, "message": str(e)},
-                "timing": {"latency_ms": elapsed_ms},
-            },
+        fields = {
+            "has_issues": False,
+            "explanation": f"Grammar check failed: {e}",
+            "status": "error",
+            "types": [],
+            "issues": [],
+            "correction": "",
+            "diff": [],
+        }
+        # A failure previously left only the formatted message. The type is
+        # what tells a timeout apart from a schema rejection.
+        debug = {
+            "request": request_meta,
+            "error": {"type": type(e).__name__, "message": str(e)},
+            "timing": {"latency_ms": elapsed_ms},
+        }
+    return fields, debug
+
+
+async def _run_check(
+    store: ResultStore,
+    provider,
+    username: str,
+    prompt: str,
+    project: str = "",
+    agent: str = "",
+    *,
+    checker: str = "",
+    provider_name: str = "",
+    model: str = "",
+):
+    request_meta = {
+        "checker": checker,
+        "provider": provider_name,
+        "model": model,
+        "system_prompt_hash": SYSTEM_PROMPT_HASH,
+    }
+    fields, debug = await _perform_check(provider, prompt, request_meta)
+    await store.add_and_broadcast(
+        CheckResult(
+            username=username, prompt=prompt, project=project, agent=agent,
+            checker=checker, debug=debug, **fields,
         )
-        await store.add_and_broadcast(error_result)
+    )
 
 
 @app.websocket("/ws")
