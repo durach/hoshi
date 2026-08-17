@@ -8,5 +8,6 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     gemini_api_key: str = ""
     tokens_file: str = "tokens.json"
+    checkers_file: str = "checkers.json"
 
     model_config = {"env_file": ".env"}
