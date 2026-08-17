@@ -1,3 +1,5 @@
+from typing import Any
+
 import openai
 
 from providers import (
@@ -10,15 +12,30 @@ from providers import (
 
 
 class OpenAIProvider:
-    def __init__(self, api_key: str, model: str, base_url: str = ""):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        base_url: str = "",
+        reasoning_effort: str = "",
+    ):
         # A local endpoint (Ollama) ignores the key, but the SDK refuses an
         # empty one; "ollama" is the conventional placeholder.
         if base_url and not api_key:
             api_key = "ollama"
         self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or None)
         self._model = model
+        self._reasoning_effort = reasoning_effort
 
     async def check_grammar(self, text: str) -> GrammarResult:
+        # Sent only when configured: a thinking model burns minutes of hidden
+        # reasoning on a grammar check (146s measured; 1.3s with "none"), but
+        # models that don't know the knob would reject an unsolicited value.
+        extra: dict[str, Any] = (
+            {"reasoning_effort": self._reasoning_effort}
+            if self._reasoning_effort
+            else {}
+        )
         # strict json_schema: the API rejects output that misses a field or uses
         # a type outside the enum, so the categories cannot drift.
         response = await self._client.chat.completions.create(
@@ -35,6 +52,7 @@ class OpenAIProvider:
                     "schema": GRAMMAR_SCHEMA,
                 },
             },
+            **extra,
         )
         content = response.choices[0].message.content
         if content is None:

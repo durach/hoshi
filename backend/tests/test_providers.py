@@ -254,3 +254,52 @@ def test_openai_provider_without_base_url_keeps_its_key():
 def test_create_provider_rejects_base_url_for_non_openai():
     with pytest.raises(ValueError, match="base_url"):
         create_provider("anthropic", "claude-x", anthropic_api_key="k", base_url="http://x")
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_sends_reasoning_effort_when_set():
+    mock_choice = MagicMock()
+    mock_choice.message.content = '{"issues": [], "correction": ""}'
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+
+    with patch("providers.openai.openai.AsyncOpenAI") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        from providers.openai import OpenAIProvider
+
+        provider = OpenAIProvider(
+            api_key="", model="qwen3:4b", base_url="http://x/v1", reasoning_effort="none"
+        )
+        await provider.check_grammar("hello")
+
+        kwargs = mock_instance.chat.completions.create.await_args.kwargs
+        assert kwargs["reasoning_effort"] == "none"
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_omits_reasoning_effort_by_default():
+    mock_choice = MagicMock()
+    mock_choice.message.content = '{"issues": [], "correction": ""}'
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+
+    with patch("providers.openai.openai.AsyncOpenAI") as MockClient:
+        mock_instance = MockClient.return_value
+        mock_instance.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        from providers.openai import OpenAIProvider
+
+        provider = OpenAIProvider(api_key="k", model="gpt-4o")
+        await provider.check_grammar("hello")
+
+        kwargs = mock_instance.chat.completions.create.await_args.kwargs
+        assert "reasoning_effort" not in kwargs
+
+
+def test_create_provider_rejects_reasoning_effort_for_non_openai():
+    with pytest.raises(ValueError, match="reasoning_effort"):
+        create_provider(
+            "gemini", "gemini-x", gemini_api_key="k", reasoning_effort="none"
+        )

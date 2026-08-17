@@ -57,6 +57,12 @@ Dashboard at `http://localhost:8080`.
 - `WS_TOKEN` must be set in `.env` and match a key in `tokens.json`, or the
   dashboard's WebSocket and `/api/results` both fail auth
 - `checkers.json` follows the `tokens.json` pattern (gitignored, `.example` committed, loaded at startup, restart after changes). Exactly one `default: true` or the backend refuses to start. A missing file falls back to `PROVIDER`/`MODEL` from `.env`. Opinions live on the parent result and their debug records under `debug["opinions"]`, which stays off the WebSocket like all debug.
+- Thinking models behind Ollama need `"reasoning_effort": "none"` in their
+  checker entry or a grammar check takes minutes, not seconds (hidden
+  deliberation — 146 s vs 1.3 s measured on the same GPU). The field rides the
+  OpenAI-compat request only when non-empty; the `/no_think` soft switch does
+  **not** work (thinking still runs, just unreported), and a bare `think:
+  false` in the compat body is ignored — only `reasoning_effort` maps through
 
 ### How a check is shaped
 - Providers do not return prose JSON. Each uses its own structured-output

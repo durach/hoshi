@@ -88,3 +88,20 @@ def test_malformed_json_dies_loudly(tmp_path):
     with pytest.raises(ValueError, match=r"checkers\.json"):
         load_checkers(str(p), fallback_provider="openai", fallback_model="m",
                       factory=fake_factory([]))
+
+
+def test_reasoning_effort_reaches_the_factory(tmp_path):
+    calls: list[tuple[str, str, dict]] = []
+    data = {
+        "checkers": [
+            {"name": "cloud", "provider": "openai", "model": "m", "default": True},
+            {"name": "local", "provider": "openai", "model": "q",
+             "base_url": "http://x/v1", "reasoning_effort": "none"},
+        ]
+    }
+    cs = load_checkers(write(tmp_path, data), fallback_provider="openai",
+                       fallback_model="m", factory=fake_factory(calls))
+    assert cs.configs["local"].reasoning_effort == "none"
+    assert cs.configs["cloud"].reasoning_effort == ""
+    assert calls[0][2]["reasoning_effort"] == ""
+    assert calls[1][2]["reasoning_effort"] == "none"

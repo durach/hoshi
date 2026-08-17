@@ -152,9 +152,14 @@ def create_provider(
     openai_api_key: str = "",
     gemini_api_key: str = "",
     base_url: str = "",
+    reasoning_effort: str = "",
 ) -> GrammarProvider:
     if base_url and provider != "openai":
         raise ValueError(f"base_url is only supported for the openai provider, not {provider!r}")
+    if reasoning_effort and provider != "openai":
+        raise ValueError(
+            f"reasoning_effort is only supported for the openai provider, not {provider!r}"
+        )
     match provider:
         case "anthropic":
             from providers.anthropic import AnthropicProvider
@@ -163,7 +168,12 @@ def create_provider(
         case "openai":
             from providers.openai import OpenAIProvider
 
-            return OpenAIProvider(api_key=openai_api_key, model=model, base_url=base_url)
+            return OpenAIProvider(
+                api_key=openai_api_key,
+                model=model,
+                base_url=base_url,
+                reasoning_effort=reasoning_effort,
+            )
         case "gemini":
             from providers.gemini import GeminiProvider
 

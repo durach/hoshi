@@ -25,6 +25,10 @@ class CheckerConfig:
     model: str
     default: bool = False
     base_url: str = ""
+    # For thinking models behind an OpenAI-compatible endpoint: "none" turns a
+    # multi-minute hidden deliberation into a one-second check. Sent only when
+    # non-empty, so models without the knob never see it.
+    reasoning_effort: str = ""
 
 
 @dataclass
@@ -59,6 +63,7 @@ def _parse(path: Path) -> list[CheckerConfig]:
                 model=str(entry["model"]),
                 default=bool(entry.get("default", False)),
                 base_url=str(entry.get("base_url", "")),
+                reasoning_effort=str(entry.get("reasoning_effort", "")),
             )
         )
 
@@ -107,6 +112,7 @@ def load_checkers(
             openai_api_key=openai_api_key,
             gemini_api_key=gemini_api_key,
             base_url=c.base_url,
+            reasoning_effort=c.reasoning_effort,
         )
         for c in configs
     }

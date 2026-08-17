@@ -139,14 +139,18 @@ lists each checker's name, provider, model, and optional `base_url` for local se
 one must have `"default": true` — the hook always uses this checker. Other checkers appear as
 a "check with…" button on each dashboard result, so you can compare implementations.
 
-A local Ollama model is just an `openai` provider entry with a `base_url` — no API key needed:
+A local Ollama model is just an `openai` provider entry with a `base_url` — no API key needed.
+For a thinking model (qwen3 and friends), also set `"reasoning_effort": "none"`: without it the
+model deliberates invisibly for minutes before answering a one-line grammar question (146 s
+measured; 1–6 s with it). Ollama maps the field to its thinking switch; it is sent only when set,
+so checkers that omit it are unaffected:
 
 ```json
 {
   "checkers": [
     { "name": "cloud", "provider": "openai", "model": "gpt-5.6-terra", "default": true },
     { "name": "local", "provider": "openai", "model": "qwen3:4b",
-      "base_url": "http://host.docker.internal:11434/v1" }
+      "base_url": "http://host.docker.internal:11434/v1", "reasoning_effort": "none" }
   ]
 }
 ```
