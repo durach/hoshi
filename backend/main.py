@@ -153,6 +153,7 @@ async def _perform_check(provider, prompt: str, request_meta: dict) -> tuple[dic
             "issues": result.issues,
             "correction": result.correction,
             "diff": analysis.get("diff", []),
+            "elapsed_ms": elapsed_ms,
         }
         debug = {
             "request": request_meta,
@@ -171,6 +172,7 @@ async def _perform_check(provider, prompt: str, request_meta: dict) -> tuple[dic
             "issues": [],
             "correction": "",
             "diff": [],
+            "elapsed_ms": elapsed_ms,
         }
         # A failure previously left only the formatted message. The type is
         # what tells a timeout apart from a schema rejection.

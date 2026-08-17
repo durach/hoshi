@@ -299,6 +299,27 @@ function renderVerdict(data) {
         : "";
 }
 
+function latencyTag(ms) {
+    // Wall time of the provider call, straight from the verdict. Absent on
+    // results recorded before the field existed.
+    return ms ? `<span class="latency">${(ms / 1000).toFixed(1)}s</span>` : "";
+}
+
+function verdictColumn(name, verdict) {
+    // One checker's verdict as a column of the compare grid — the primary
+    // result and an opinion carry the same fields, so one renderer serves both.
+    const badgeClass = verdict.status === "error" ? "error" : verdict.has_issues ? "issues" : "clean";
+    const badgeText = verdict.status === "error" ? "error" : verdict.has_issues ? "issues found" : "clean";
+    return `<div class="opinion">
+        <div class="opinion-header">
+            ${name ? `<span class="checker">${escapeHtml(name)}</span>` : ""}
+            <span class="badge ${badgeClass}">${badgeText}</span>
+            ${latencyTag(verdict.elapsed_ms)}
+        </div>
+        ${renderVerdict(verdict)}
+    </div>`;
+}
+
 function addEntry(data) {
     // A new run means the backend restarted and its store is empty, so ids
     // start over and whatever is on screen is stale. Drop it and rebuild.
@@ -342,8 +363,13 @@ function addEntry(data) {
     // buttons — never on an error entry, since there is nothing to re-check.
     const attached = new Set([data.checker, ...(data.opinions || []).map((o) => o.checker)]);
     const offers = data.status === "error" ? [] : availableCheckers.filter((c) => !attached.has(c.name));
+    // "check with all" fires every remaining checker at once — the backend
+    // runs each opinion as its own task, so the fan-out is genuinely parallel.
+    const allButton = offers.length >= 2
+        ? `<button type="button" class="opinion-link" data-id="${data.id}" data-checkers="${offers.map((c) => escapeHtml(c.name)).join(" ")}">check with all</button>`
+        : "";
     const opinionControls = offers.length
-        ? `<div class="opinion-offer">${offers
+        ? `<div class="opinion-offer">${allButton}${offers
               .map(
                   (c) =>
                       `<button type="button" class="opinion-link" data-id="${data.id}" data-checker="${escapeHtml(c.name)}">check with ${escapeHtml(c.name)}</button>`
@@ -351,21 +377,15 @@ function addEntry(data) {
               .join("")}</div>`
         : "";
 
-    // A second opinion nests inside the entry, visually subordinate to it,
-    // sharing the same verdict rendering as the main result.
-    const opinionBlocks = (data.opinions || [])
-        .map((o) => {
-            const oBadgeClass = o.status === "error" ? "error" : o.has_issues ? "issues" : "clean";
-            const oBadgeText = o.status === "error" ? "error" : o.has_issues ? "issues found" : "clean";
-            return `<div class="opinion">
-                <div class="opinion-header">
-                    <span class="checker">${escapeHtml(o.checker)}</span>
-                    <span class="badge ${oBadgeClass}">${oBadgeText}</span>
-                </div>
-                ${renderVerdict(o)}
-            </div>`;
-        })
-        .join("");
+    // With opinions attached the entry becomes a comparison: every verdict —
+    // the primary checker's included — is a column of the same grid, so
+    // agreement is read across, not down.
+    const verdicts = (data.opinions || []).length
+        ? `<div class="compare">${[
+              verdictColumn(data.checker, data),
+              ...(data.opinions || []).map((o) => verdictColumn(o.checker, o)),
+          ].join("")}</div>`
+        : body;
 
     // Rendered always, revealed by CSS only under the debug toggle — so the
     // feed never has to be rebuilt when the toggle flips.
@@ -382,13 +402,13 @@ function addEntry(data) {
             ${data.project ? `<span class="project">${escapeHtml(data.project)}</span>` : ""}
             <span>${time}</span>
             <span class="badge ${badgeClass}">${badgeText}</span>
+            ${latencyTag(data.elapsed_ms)}
             ${typeTags}
             ${ghostFlag}
             ${debugLink}
         </div>
         <div class="prompt">${escapeHtml(data.prompt)}</div>
-        ${body}
-        ${opinionBlocks}
+        ${verdicts}
         ${opinionControls}
     `;
 
@@ -455,24 +475,36 @@ connect();
 feed.addEventListener("click", async (event) => {
     const opinionLink = event.target.closest(".opinion-link");
     if (opinionLink) {
-        opinionLink.disabled = true;
+        // The "all" variant carries the remaining names in data-checkers; a
+        // single button carries one name in data-checker. Either way each
+        // checker is its own request, so the fan-out runs concurrently and
+        // every opinion lands as its own re-broadcast.
+        const names = opinionLink.dataset.checkers
+            ? opinionLink.dataset.checkers.split(" ")
+            : [opinionLink.dataset.checker];
+        const row = opinionLink.closest(".opinion-offer");
+        row.querySelectorAll(".opinion-link").forEach((b) => {
+            b.disabled = true;
+        });
         opinionLink.textContent = "checking…";
-        try {
+        const post = async (checker) => {
             const resp = await fetch(`/api/results/${opinionLink.dataset.id}/checks`, {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ checker: opinionLink.dataset.checker }),
+                body: JSON.stringify({ checker }),
             });
             if (!resp.ok) {
-                opinionLink.textContent = `failed (${resp.status})`;
+                throw new Error(String(resp.status));
             }
-            // On success the re-broadcast replaces the whole entry.
-        } catch (e) {
-            opinionLink.disabled = false;
-            opinionLink.textContent = `check with ${opinionLink.dataset.checker}`;
+        };
+        const results = await Promise.allSettled(names.map(post));
+        // On success each re-broadcast replaces the whole entry, buttons
+        // included; this text only survives if something was rejected.
+        if (results.some((r) => r.status === "rejected")) {
+            opinionLink.textContent = "failed";
         }
         return;
     }

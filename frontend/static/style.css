@@ -415,6 +415,26 @@ h1 { font-size: 1.5rem; color: var(--heading); }
     border: 1px solid var(--border);
     border-radius: 6px;
 }
+
+/* Side-by-side verdicts: one column per checker, scrolling horizontally
+   rather than ever widening the page. */
+.compare {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(230px, 1fr);
+    gap: 0.6rem;
+    overflow-x: auto;
+}
+
+.compare .opinion {
+    margin-top: 0.6rem;
+}
+
+/* Wall time of the provider call, next to the verdict it timed. */
+.latency {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+}
 .opinion-header {
     display: flex;
     align-items: center;

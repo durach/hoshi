@@ -246,6 +246,12 @@ def test_to_dict_carries_checker_and_opinions():
     assert "debug" not in d
 
 
+def test_to_dict_carries_elapsed_ms():
+    r = CheckResult(username="u", prompt="p", has_issues=False, explanation="",
+                    elapsed_ms=2471)
+    assert r.to_dict()["elapsed_ms"] == 2471
+
+
 @pytest.mark.asyncio
 async def test_broadcast_resends_without_adding():
     store = ResultStore()

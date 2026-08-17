@@ -96,6 +96,7 @@ async def test_opinion_lands_and_rebroadcasts(client, store, auth, provider):
     result = store.results[-1]
     assert result.opinions[0]["checker"] == "second"
     assert result.opinions[0]["status"] == "clean"
+    assert isinstance(result.opinions[0]["elapsed_ms"], int)
     assert "raw" not in result.opinions[0]
     assert result.debug["opinions"]["second"]["request"]["checker"] == "second"
     ws.send_json.assert_awaited_once_with(result.to_dict())

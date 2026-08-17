@@ -24,6 +24,9 @@ class CheckResult:
     # dashboard renders for the main verdict.
     checker: str = ""
     opinions: list[dict[str, Any]] = field(default_factory=list)
+    # Wall time of the provider call. Also inside debug.timing, but debug never
+    # rides the WebSocket, and the dashboard shows a time per verdict.
+    elapsed_ms: int = 0
     run_id: str = ""
     types: list[str] = field(default_factory=list)
     issues: list[dict[str, str]] = field(default_factory=list)
@@ -67,6 +70,7 @@ class CheckResult:
             "diff": [dict(s) for s in self.diff],
             "has_ghost_marks": self.has_ghost_marks(),
             "opinions": [dict(o) for o in self.opinions],
+            "elapsed_ms": self.elapsed_ms,
             "timestamp": self.timestamp,
         }
 
