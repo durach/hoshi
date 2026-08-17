@@ -1,6 +1,7 @@
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import (
     Depends,
@@ -203,6 +204,68 @@ async def _run_check(
             checker=checker, debug=debug, **fields,
         )
     )
+
+
+class OpinionRequest(BaseModel):
+    # Same slug rule as checker names in checkers.py.
+    checker: str = Field(pattern=r"^[a-z0-9-]{1,32}$")
+
+
+@app.get("/api/checkers")
+async def list_checkers(request: Request, _username: str = Depends(require_username)):
+    """The configured checkers, for the dashboard's "check with…" control."""
+    configs = request.app.state.checkers.configs.values()
+    return {"checkers": [{"name": c.name, "default": c.default} for c in configs]}
+
+
+@app.post("/api/results/{result_id}/checks", status_code=202)
+async def add_opinion(
+    result_id: int,
+    body: OpinionRequest,
+    request: Request,
+    _username: str = Depends(require_username),
+):
+    checkers = request.app.state.checkers
+    if body.checker not in checkers.providers:
+        raise HTTPException(status_code=422, detail="unknown checker")
+    store = request.app.state.store
+    result = next((r for r in store.results if r.id == result_id), None)
+    if result is None:
+        raise HTTPException(status_code=404, detail="not found")
+    attached = {result.checker} | {o["checker"] for o in result.opinions}
+    if body.checker in attached:
+        raise HTTPException(status_code=422, detail="checker already ran on this result")
+    task = asyncio.create_task(_run_opinion(store, checkers, result, body.checker))
+    request.app.state.background_tasks.add(task)
+    task.add_done_callback(request.app.state.background_tasks.discard)
+    return {"status": "accepted"}
+
+
+async def _run_opinion(store: ResultStore, checkers, result: CheckResult, name: str):
+    cfg = checkers.configs[name]
+    request_meta = {
+        "checker": name,
+        "provider": cfg.provider,
+        "model": cfg.model,
+        "system_prompt_hash": SYSTEM_PROMPT_HASH,
+    }
+    fields, debug = await _perform_check(checkers.providers[name], result.prompt, request_meta)
+    # Re-check under the running loop: two clicks can race the 422 guard, and
+    # the second to finish must not attach a duplicate.
+    if name in {o["checker"] for o in result.opinions}:
+        return
+    result.opinions.append(
+        {
+            "checker": name,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "has_ghost_marks": bool((debug.get("analysis") or {}).get("ghost_marks")),
+            **fields,
+        }
+    )
+    if result.debug is None:
+        result.debug = {}
+    result.debug.setdefault("opinions", {})[name] = debug
+    await store.broadcast(result)
 
 
 @app.websocket("/ws")
