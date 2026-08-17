@@ -228,3 +228,29 @@ def test_system_prompt_hash_is_stable_and_short():
 
     assert len(SYSTEM_PROMPT_HASH) == 8
     assert hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:8] == SYSTEM_PROMPT_HASH
+
+
+# --- base_url support for OpenAI (Ollama compatibility) ---
+
+
+def test_openai_provider_passes_base_url_and_placeholder_key():
+    with patch("providers.openai.openai.AsyncOpenAI") as MockClient:
+        from providers.openai import OpenAIProvider
+
+        OpenAIProvider(api_key="", model="qwen3:4b", base_url="http://host.docker.internal:11434/v1")
+        MockClient.assert_called_once_with(
+            api_key="ollama", base_url="http://host.docker.internal:11434/v1"
+        )
+
+
+def test_openai_provider_without_base_url_keeps_its_key():
+    with patch("providers.openai.openai.AsyncOpenAI") as MockClient:
+        from providers.openai import OpenAIProvider
+
+        OpenAIProvider(api_key="real-key", model="gpt-4o")
+        MockClient.assert_called_once_with(api_key="real-key", base_url=None)
+
+
+def test_create_provider_rejects_base_url_for_non_openai():
+    with pytest.raises(ValueError, match="base_url"):
+        create_provider("anthropic", "claude-x", anthropic_api_key="k", base_url="http://x")

@@ -10,8 +10,12 @@ from providers import (
 
 
 class OpenAIProvider:
-    def __init__(self, api_key: str, model: str):
-        self._client = openai.AsyncOpenAI(api_key=api_key)
+    def __init__(self, api_key: str, model: str, base_url: str = ""):
+        # A local endpoint (Ollama) ignores the key, but the SDK refuses an
+        # empty one; "ollama" is the conventional placeholder.
+        if base_url and not api_key:
+            api_key = "ollama"
+        self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or None)
         self._model = model
 
     async def check_grammar(self, text: str) -> GrammarResult:
