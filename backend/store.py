@@ -19,6 +19,11 @@ class CheckResult:
     id: int = 0
     project: str = ""
     agent: str = ""
+    # Which named checker produced the verdict, and any second opinions
+    # attached later — one per checker name, shaped like the fields the
+    # dashboard renders for the main verdict.
+    checker: str = ""
+    opinions: list[dict[str, Any]] = field(default_factory=list)
     run_id: str = ""
     types: list[str] = field(default_factory=list)
     issues: list[dict[str, str]] = field(default_factory=list)
@@ -51,6 +56,7 @@ class CheckResult:
             "username": self.username,
             "project": self.project,
             "agent": self.agent,
+            "checker": self.checker,
             "prompt": self.prompt,
             "has_issues": self.has_issues,
             "explanation": self.explanation,
@@ -60,6 +66,7 @@ class CheckResult:
             "correction": self.correction,
             "diff": [dict(s) for s in self.diff],
             "has_ghost_marks": self.has_ghost_marks(),
+            "opinions": [dict(o) for o in self.opinions],
             "timestamp": self.timestamp,
         }
 
@@ -87,8 +94,7 @@ class ResultStore:
     def disconnect(self, websocket):
         self._connections.discard(websocket)
 
-    async def add_and_broadcast(self, result: CheckResult):
-        self.add(result)
+    async def broadcast(self, result: CheckResult):
         data = result.to_dict()
         dead = []
         # Snapshot the set: sending yields to the event loop, which may
@@ -100,3 +106,7 @@ class ResultStore:
                 dead.append(ws)
         for ws in dead:
             self._connections.discard(ws)
+
+    async def add_and_broadcast(self, result: CheckResult):
+        self.add(result)
+        await self.broadcast(result)

@@ -232,3 +232,27 @@ def test_diff_is_broadcast():
 def test_diff_defaults_to_empty():
     plain = CheckResult(username="a", prompt="p", has_issues=False, explanation="")
     assert plain.to_dict()["diff"] == []
+
+
+def test_to_dict_carries_checker_and_opinions():
+    r = CheckResult(username="u", prompt="p", has_issues=False, explanation="",
+                    checker="terra")
+    r.opinions.append({"checker": "qwen8", "has_issues": True, "status": "issues",
+                       "types": ["grammar"], "issues": [], "correction": "", "diff": [],
+                       "explanation": "", "has_ghost_marks": False, "timestamp": "t"})
+    d = r.to_dict()
+    assert d["checker"] == "terra"
+    assert d["opinions"][0]["checker"] == "qwen8"
+    assert "debug" not in d
+
+
+@pytest.mark.asyncio
+async def test_broadcast_resends_without_adding():
+    store = ResultStore()
+    r = CheckResult(username="u", prompt="p", has_issues=False, explanation="")
+    store.add(r)
+    ws = AsyncMock()
+    store.connect(ws)
+    await store.broadcast(r)
+    assert len(store.results) == 1
+    ws.send_json.assert_awaited_once_with(r.to_dict())
